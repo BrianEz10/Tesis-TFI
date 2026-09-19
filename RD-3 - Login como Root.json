@@ -1,0 +1,814 @@
+{
+  "name": "RD-3 - Login como Root",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT last_run FROM workflow_state WHERE workflow_name = 'RD-3';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        224,
+        0
+      ],
+      "id": "36a7d410-8ace-4b08-ac53-03e276aecf03",
+      "name": "Get last_run",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: $('RD-3 Trigger').first().json.stdout, .read_time\n// (recordá el bug de RD-1: referenciar el nodo trigger por nombre, NO $input.first())\n\nconst stdout = $('RD-3 Trigger').first().json.stdout;\nconst lastRun = new Date($input.first().json.last_run); // desde Get last_run (Postgres)\n\nconst lines = stdout.split('\\n');\nconst regex = /(Failed|Accepted) password for root from (\\d+\\.\\d+\\.\\d+\\.\\d+) port (\\d+)/;\n\n// Necesitamos el timestamp real de cada línea para filtrar por last_run.\n// Igual que en RD-1/RD-2, se asume que el ISODATE ya viene al principio de cada línea\n// (formato Syslog-ng: ${ISODATE} ${HOST} ${PROGRAM} ${MESSAGE})\nconst isoRegex = /^(\\S+)\\s/;\n\nconst events = [];\n\nfor (const line of lines) {\n  const match = line.match(regex);\n  if (!match) continue;\n\n  const isoMatch = line.match(isoRegex);\n  if (!isoMatch) continue;\n\n  const eventTime = new Date(isoMatch[1]);\n  if (eventTime <= lastRun) continue; // ya procesado en una corrida anterior\n\n  events.push({\n    result: match[1],       // 'Failed' o 'Accepted'\n    ip: match[2],\n    port: match[3],\n    timestamp: eventTime.toISOString()\n  });\n}\n\n// Agrupar por IP\nconst byIp = {};\nfor (const ev of events) {\n  if (!byIp[ev.ip]) {\n    byIp[ev.ip] = {\n      src_ip: ev.ip,\n      failed_attempts: 0,\n      accepted: false,\n      first_seen: ev.timestamp,\n      last_seen: ev.timestamp,\n      ports_used: []\n    };\n  }\n  const entry = byIp[ev.ip];\n  if (ev.result === 'Failed') entry.failed_attempts++;\n  if (ev.result === 'Accepted') entry.accepted = true;\n  if (ev.timestamp < entry.first_seen) entry.first_seen = ev.timestamp;\n  if (ev.timestamp > entry.last_seen) entry.last_seen = ev.timestamp;\n  entry.ports_used.push(ev.port);\n}\n\n// Devolver un item por IP detectada (0, 1 o más IPs distintas en la misma corrida)\nreturn Object.values(byIp).map(entry => ({ json: entry }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        0
+      ],
+      "id": "1061f88b-3dbf-456f-b55c-64902b863b88",
+      "name": "Parseo RD-3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f0505635-179b-46f0-8030-8bfef8b9c6c9",
+              "leftValue": "={{ $json.src_ip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        544,
+        0
+      ],
+      "id": "b0d68947-d29e-4625-82fa-7c0284832c50",
+      "name": " IF (¿hay eventos?)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COALESCE(bool_or(is_blocked), false) AS already_banned\nFROM attack_patterns\nWHERE source_ip = '{{ $json.src_ip }}' AND pattern_type = 'RD-3';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        -208
+      ],
+      "id": "b5687dfa-8244-4631-9b60-be4600a998fd",
+      "name": "Check Already Banned",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "f9a5969a-2b41-42ec-bdb9-ff3b91e948f8",
+              "leftValue": "={{ $json.already_banned }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        -208
+      ],
+      "id": "c56162ce-d682-4e32-b125-17cbed1e96df",
+      "name": "IF1 (¿ya está baneada?)"
+    },
+    {
+      "parameters": {
+        "url": "https://api.abuseipdb.com/api/v2/check",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ipAddress",
+              "value": "={{ $('Parseo RD-3').first().json.src_ip }}"
+            },
+            {
+              "name": "maxAgeInDays",
+              "value": "90"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1040,
+        -112
+      ],
+      "id": "8cc4ef83-fc94-4b03-92c9-be26c8303efc",
+      "name": "AbuseIPDB Check",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "RmoJlw7LGbIeMode",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO alerts (created_at, event_timestamp, rule_id, src_ip, severity, category,\n  abuse_score, event_count, description, payload, status)\nVALUES (NOW(), '{{ $('Parseo RD-3').item.json.first_seen }}', 'RD-3',\n  '{{ $('Parseo RD-3').item.json.src_ip }}', 'crítico', 'root_login',\n  {{ $json.data.abuseConfidenceScore }},\n  {{ $('Parseo RD-3').item.json.failed_attempts }},\n  '{{ $('Parseo RD-3').item.json.accepted ? \"Acceso root logrado (login exitoso)\" : \"Intentos de login root fallidos\" }}',\n  '{{ JSON.stringify($('Parseo RD-3').item.json) }}'::jsonb,\n  'pending')\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1200,
+        -112
+      ],
+      "id": "5311fd5f-513d-404f-96a3-7932905f43f6",
+      "name": "Insert Alert",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendAndWait",
+        "guildId": {
+          "__rl": true,
+          "value": "1524899358875844801",
+          "mode": "list",
+          "cachedResultName": "Alertas SOC",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1524899359404331150",
+          "mode": "list",
+          "cachedResultName": "alertas-soc",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+        },
+        "message": "={{ $('Parseo RD-3').first().json.accepted \n  ? `🚨 **CRÍTICO — ACCESO ROOT LOGRADO**\\nIP: ${$('Parseo RD-3').first().json.src_ip}\\nIntentos fallidos previos: ${$('Parseo RD-3').first().json.failed_attempts}\\nPrimer evento: ${$('Parseo RD-3').first().json.first_seen}\\nAbuseIPDB score: ${$('AbuseIPDB Check').first().json.data.abuseConfidenceScore}\\n\\n¿Aprobar bloqueo de la IP?`\n  : `⚠️ **Intentos de login root (sin éxito)**\\nIP: ${$('Parseo RD-3').first().json.src_ip}\\nIntentos fallidos: ${$('Parseo RD-3').first().json.failed_attempts}\\nPrimer evento: ${$('Parseo RD-3').first().json.first_seen}\\nAbuseIPDB score: ${$('AbuseIPDB Check').first().json.data.abuseConfidenceScore}\\n\\n¿Aprobar bloqueo de la IP?`\n}}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "✓ Aprobar",
+            "disapproveLabel": "✗ Rechazar"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        -112
+      ],
+      "id": "aab12e33-da99-4040-85b0-322cae10e406",
+      "name": "Discord Aprobación",
+      "webhookId": "d28aa173-c732-403a-9c5a-5852d65dc229",
+      "credentials": {
+        "discordBotApi": {
+          "id": "ajvHMeDKIJjgIo9t",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=sudo fail2ban-client set soc-lab-manual banip {{ $('Parseo RD-3').item.json.src_ip }}"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        -144
+      ],
+      "id": "046fd638-e45d-43a8-b9c2-df92e325e87e",
+      "name": "Ban IP",
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "npmcxJI9xkC11pDv",
+          "name": "SSH Private Key account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ebf406fd-8163-4554-adf6-8cec81e9255b",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1552,
+        -64
+      ],
+      "id": "01a1dcf1-3479-41ea-a224-fbf56a8f92ff",
+      "name": "IF Aprobado"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO playbook_runs (alert_id, workflow_name, started_at, executed_at, result, parameters)\nVALUES (\n  {{ $('Insert Alert').item.json.id }},\n  'RD-3',\n  '{{ $('Parseo RD-3').item.json.first_seen }}',\n  NOW(),\n  'banned',\n  '{{ JSON.stringify($('Parseo RD-3').item.json) }}'::jsonb\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1936,
+        -144
+      ],
+      "id": "2f034a99-6eb2-4adb-9a3e-c2f00b1652e8",
+      "name": "Insert playbook_runs (banned)",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO attack_patterns (source_ip, pattern_type,\n  first_seen, last_seen, occurrence_count, is_blocked)\nVALUES (\n  '{{ $('Parseo RD-3').item.json.src_ip }}',\n  'RD-3',\n  '{{ $('Parseo RD-3').item.json.first_seen }}',\n  NOW(),\n  1,\n  true\n)\nON CONFLICT (source_ip, pattern_type)\nDO UPDATE SET last_seen = NOW(),\n  is_blocked = true,\n  occurrence_count = attack_patterns.occurrence_count + 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2128,
+        -96
+      ],
+      "id": "d0b7a99d-80c0-43c0-94e8-178185cff485",
+      "name": "Upsert attack_patterns",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO playbook_runs (alert_id, workflow_name, started_at, executed_at, result, parameters)\nVALUES (\n  {{ $('Insert Alert').item.json.id }},\n  'RD-3',\n  '{{ $('Parseo RD-3').item.json.first_seen }}',\n  NOW(),\n  'rejected_by_analyst',\n  '{{ JSON.stringify($('Parseo RD-3').item.json) }}'::jsonb\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1776,
+        48
+      ],
+      "id": "7f5c9ebb-4419-4c30-b656-40ce1c760949",
+      "name": "Insert playbook_runs (rejected)",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1524899358875844801",
+          "mode": "list",
+          "cachedResultName": "Alertas SOC",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1524899359404331150",
+          "mode": "list",
+          "cachedResultName": "alertas-soc",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+        },
+        "content": "=❌ IP {{ $('Parseo RD-3').item.json.src_ip }} NO bloqueada (rechazado por analista) — alerta #{{ $('Insert Alert').item.json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        48
+      ],
+      "id": "1637695c-be9b-4621-b8a3-3e8372b8fac1",
+      "name": "Discord Confirmación Rechazada",
+      "webhookId": "90218da2-3cd3-4a08-9f2c-cd5d71430722",
+      "credentials": {
+        "discordBotApi": {
+          "id": "ajvHMeDKIJjgIo9t",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1524899358875844801",
+          "mode": "list",
+          "cachedResultName": "Alertas SOC",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1524899359404331150",
+          "mode": "list",
+          "cachedResultName": "alertas-soc",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+        },
+        "content": "=✅ IP {{ $('Parseo RD-3').item.json.src_ip }} bloqueada por login root (alerta #{{ $('Insert Alert').item.json.id }})",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        -80
+      ],
+      "id": "79d44899-3c70-4f1d-a6b1-b2e00319b33b",
+      "name": "Discord Confirmación Aprobada",
+      "webhookId": "e7ee776f-9a00-454f-895e-6db2fd69e7eb",
+      "credentials": {
+        "discordBotApi": {
+          "id": "ajvHMeDKIJjgIo9t",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE attack_patterns\nSET occurrence_count = occurrence_count + 1, last_seen = NOW()\nWHERE source_ip = '{{ $('Parseo RD-3').item.json.src_ip }}' AND pattern_type = 'RD-3'\nRETURNING occurrence_count;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1536,
+        -304
+      ],
+      "id": "4af387bc-c9e8-4811-8c40-2e05efee52fc",
+      "name": "Incremento de Reintento",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c97a555e-8ce6-47ff-9fa4-2315c17331aa",
+              "leftValue": "={{ $json.occurrence_count }}",
+              "rightValue": "={{ 2 }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2336,
+        -320
+      ],
+      "id": "7df9ac6c-8d74-4285-9656-07f683950583",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1524899358875844801",
+          "mode": "list",
+          "cachedResultName": "Alertas SOC",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1524899359404331150",
+          "mode": "list",
+          "cachedResultName": "alertas-soc",
+          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+        },
+        "content": "=🔁 RD-3: reincidencia detectada\nIP {{ $('Parseo RD-3').first().json.src_ip }} volvió a intentar login como root, pero ya está bloqueada desde antes.\nNo se repetirán más avisos para esta IP; el conteo completo queda en la base de auditoría.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        -336
+      ],
+      "id": "116a6034-a0a3-4396-b8c1-0fda1d623675",
+      "name": "Send a message",
+      "webhookId": "86de2393-e608-4c07-858c-917539b2e8e9",
+      "credentials": {
+        "discordBotApi": {
+          "id": "ajvHMeDKIJjgIo9t",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE workflow_state SET last_run = '{{ $('RD-3 Trigger').first().json.read_time }}' WHERE workflow_name = 'RD-3';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2720,
+        400
+      ],
+      "id": "c997ded5-312a-4ba3-8e08-41cf2aeeed14",
+      "name": "Update workflow_state",
+      "credentials": {
+        "postgres": {
+          "id": "qsoU1UxYvwAY6xk7",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "stdout"
+            },
+            {
+              "name": "read_time"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        0
+      ],
+      "id": "aa870006-1c15-4184-9863-574c32a7c47a",
+      "name": "RD-3 Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Parseo RD-3": {
+      "main": [
+        [
+          {
+            "node": " IF (¿hay eventos?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get last_run": {
+      "main": [
+        [
+          {
+            "node": "Parseo RD-3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    " IF (¿hay eventos?)": {
+      "main": [
+        [
+          {
+            "node": "Check Already Banned",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update workflow_state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Already Banned": {
+      "main": [
+        [
+          {
+            "node": "IF1 (¿ya está baneada?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF1 (¿ya está baneada?)": {
+      "main": [
+        [
+          {
+            "node": "Incremento de Reintento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AbuseIPDB Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AbuseIPDB Check": {
+      "main": [
+        [
+          {
+            "node": "Insert Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Alert": {
+      "main": [
+        [
+          {
+            "node": "Discord Aprobación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord Aprobación": {
+      "main": [
+        [
+          {
+            "node": "IF Aprobado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Aprobado": {
+      "main": [
+        [
+          {
+            "node": "Ban IP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert playbook_runs (rejected)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ban IP": {
+      "main": [
+        [
+          {
+            "node": "Insert playbook_runs (banned)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert playbook_runs (banned)": {
+      "main": [
+        [
+          {
+            "node": "Upsert attack_patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert attack_patterns": {
+      "main": [
+        [
+          {
+            "node": "Discord Confirmación Aprobada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert playbook_runs (rejected)": {
+      "main": [
+        [
+          {
+            "node": "Discord Confirmación Rechazada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incremento de Reintento": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update workflow_state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord Confirmación Aprobada": {
+      "main": [
+        [
+          {
+            "node": "Update workflow_state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update workflow_state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord Confirmación Rechazada": {
+      "main": [
+        [
+          {
+            "node": "Update workflow_state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RD-3 Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get last_run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "814a39d7-49aa-4906-973b-d2779998e40b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "97349534626551678f72660d0cc4978642716e23656898d110b0e6f6f47444da"
+  },
+  "nodeGroups": [],
+  "id": "SeK9JNRCfyiMpjfA",
+  "tags": []
+}
