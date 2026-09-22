@@ -1,0 +1,17 @@
+# /etc/fail2ban/jail.local
+# El jail sshd nativo se DESHABILITA para que Fail2ban no bloquee por su
+# cuenta antes de que n8n procese el evento y obtenga la aprobación humana.
+# El jail soc-lab-manual es el que n8n comanda vía SSH (fail2ban-client banip).
+
+[sshd]
+enabled = false
+
+[soc-lab-manual]
+enabled  = true
+backend  = polling
+filter   = soc-lab-manual
+logpath  = /var/log/security/alerts.log
+action   = iptables-allports[name=soc-lab-manual]
+maxretry = 999999
+findtime = 1
+bantime  = 3600

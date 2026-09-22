@@ -17,7 +17,7 @@
       "name": "Get last_run",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -94,7 +94,7 @@
       "name": "HTTP Request",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "RmoJlw7LGbIeMode",
+          "id": "TU_CREDENCIAL_ABUSEIPDB_AQUI",
           "name": "Header Auth account"
         }
       }
@@ -128,7 +128,7 @@
       "name": "¿ya está baneada?",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -173,17 +173,17 @@
         "operation": "sendAndWait",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "message": "=🚨 **RD-1: Fuerza bruta SSH detectada**\nIP origen: {{$('Parseo RD-1').item.json.ip}}\nIntentos: {{$('Parseo RD-1').item.json.count}} en 5 min\nAbuse score: {{$('HTTP Request').item.json.data.abuseConfidenceScore}}\n\n¿Bloquear esta IP 60 min vía Fail2ban?",
         "approvalOptions": {
@@ -210,10 +210,9 @@
       ],
       "id": "60840abc-84fc-43cd-8588-f9c78b347ae4",
       "name": "Discord Aprobacion",
-      "webhookId": "3e8f333f-8905-49db-97c4-0e333177d0c0",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -268,7 +267,7 @@
       "name": "Execute a command",
       "credentials": {
         "sshPrivateKey": {
-          "id": "npmcxJI9xkC11pDv",
+          "id": "TU_CREDENCIAL_SSH_AQUI",
           "name": "SSH Private Key account"
         }
       }
@@ -289,7 +288,7 @@
       "name": "Execute a SQL query1",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -310,7 +309,7 @@
       "name": "Execute a SQL query2",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -331,7 +330,7 @@
       "name": "Execute a SQL query3",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -352,7 +351,7 @@
       "name": "Execute a SQL query4",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -373,7 +372,7 @@
       "name": "Insert Alert",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -383,17 +382,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=✅ **Acción completada — RD-1: Fuerza bruta SSH**\nIP: {{$('Parseo RD-1').item.json.ip}}\nEstado: **Bloqueada** durante 60 minutos vía Fail2ban\nAprobado por: analista SOC\nRegistro de auditoría: alerta #{{$('Insert Alert').item.json.id}}",
         "options": {}
@@ -406,10 +405,9 @@
       ],
       "id": "e60d272f-9a1b-4088-8420-6326d3e273f0",
       "name": "Send a message",
-      "webhookId": "b0b230d5-a897-4da7-a141-86e8e6016eeb",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -419,17 +417,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=❌ **Acción completada — RD-1: Fuerza bruta SSH**\nIP: {{$('Parseo RD-1').item.json.ip}}\nEstado: **No bloqueada** — decisión manual del analista\nRegistro de auditoría: alerta #{{$('Insert Alert').item.json.id}}",
         "options": {}
@@ -442,10 +440,9 @@
       ],
       "id": "0595c393-bfc8-4eed-a3ed-a32f4b41a5bd",
       "name": "Send a message1",
-      "webhookId": "b0b230d5-a897-4da7-a141-86e8e6016eeb",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -466,7 +463,7 @@
       "name": "Increment Reintento",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -511,17 +508,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=ℹ️ **RD-1: reincidencia detectada**\nIP {{$('Parseo RD-1').item.json.ip}} volvió a intentar fuerza bruta SSH, pero ya está bloqueada desde antes.\nNo se repetirán más avisos para esta IP; el conteo completo queda en la base de auditoría.",
         "options": {}
@@ -534,10 +531,9 @@
       ],
       "id": "0c9229cb-9590-4f15-a670-9d55210dcce8",
       "name": "Send a message2",
-      "webhookId": "b0b230d5-a897-4da7-a141-86e8e6016eeb",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -811,12 +807,11 @@
     "timeSavedMode": "fixed",
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "a61c68a1-2ee3-46a4-8440-be4262979baf",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "97349534626551678f72660d0cc4978642716e23656898d110b0e6f6f47444da"
+    "instanceId": "TU_INSTANCE_ID_AQUI"
   },
   "nodeGroups": [],
-  "id": "nypoRcEg7DwqSKLf",
+  "id": "TU_WORKFLOW_ID_RD1_AQUI",
   "tags": []
 }
