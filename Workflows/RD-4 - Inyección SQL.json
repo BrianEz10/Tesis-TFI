@@ -39,7 +39,7 @@
       "name": "Get last_run",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -107,7 +107,7 @@
       "name": "Check Already Banned",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -176,7 +176,7 @@
       "name": "AbuseIPDB Check",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "RmoJlw7LGbIeMode",
+          "id": "TU_CREDENCIAL_ABUSEIPDB_AQUI",
           "name": "Header Auth account"
         }
       }
@@ -199,7 +199,7 @@
       "name": "Insert Alert",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -210,17 +210,17 @@
         "operation": "sendAndWait",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "message": "=🚨 Posible inyección SQL detectada\nIP: {{ $('Parseo RD-4').first().json.src_ip }}\nPeticiones sospechosas: {{ $('Parseo RD-4').first().json.count }} en ventana de 2 min\nAbuse Score: {{ $('AbuseIPDB Check').first().json.data.abuseConfidenceScore }}\nPayload de ejemplo: {{ $('Parseo RD-4').first().json.queries[0] }}\nAlert ID: {{ $('Insert Alert').first().json.id }}",
         "approvalOptions": {
@@ -240,10 +240,9 @@
       ],
       "id": "69da4869-3178-4e34-b551-3db6c18a715e",
       "name": "Discord Aprobación",
-      "webhookId": "3ac9094c-0564-4ae7-8007-757b0dcd0234",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -300,7 +299,7 @@
       "name": "Insert playbook_runs",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -310,17 +309,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=❌ Acción rechazada — RD-4: Inyección SQL\nIP: {{ $('Parseo RD-4').first().json.src_ip }}\nEstado: NO bloqueada — requiere revisión manual\nPeticiones sospechosas detectadas: {{ $('Parseo RD-4').first().json.event_count }}\nRechazado por: analista SOC\nRegistro de auditoría: Alerta #{{ $('Insert Alert').first().json.id }}",
         "options": {}
@@ -333,10 +332,9 @@
       ],
       "id": "179fcb67-c6cd-4f9a-995f-bfd36b8f2828",
       "name": "Discord Confirmación Rechazada",
-      "webhookId": "40c66f10-b476-4403-8bca-273b59bca6ca",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -356,7 +354,7 @@
       "name": "Ban IP",
       "credentials": {
         "sshPrivateKey": {
-          "id": "npmcxJI9xkC11pDv",
+          "id": "TU_CREDENCIAL_SSH_AQUI",
           "name": "SSH Private Key account"
         }
       }
@@ -379,7 +377,7 @@
       "name": "Insert playbook_runs1",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -402,7 +400,7 @@
       "name": "Upsert attack_patterns",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -412,17 +410,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=✅ Acción completada — RD-4: Inyección SQL\nIP: {{ $('Parseo RD-4').first().json.src_ip }}\nEstado: Bloqueada durante 60 minutos vía Fail2ban + DOCKER-USER\nPeticiones sospechosas detectadas: {{ $('Parseo RD-4').first().json.count }}\nAprobado por: analista SOC\nRegistro de auditoría: Alerta #{{ $('Insert Alert').first().json.id }}",
         "options": {}
@@ -435,10 +433,9 @@
       ],
       "id": "6fb7b755-1bd9-459c-88c0-9f9e84d75505",
       "name": "Discord Confirmación Aprobado",
-      "webhookId": "47b5cc48-1369-4556-82c3-4e1aeddabc9a",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -461,7 +458,7 @@
       "name": "Update workflow_state",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -484,7 +481,7 @@
       "name": "Increment Reintento",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -528,17 +525,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=🔁 Reincidencia: IP {{ $('Parseo RD-4').first().json.src_ip }} volvió a disparar RD-4 (ya estaba bloqueada). Sin acción adicional — mismo bloqueo sigue vigente.",
         "options": {}
@@ -551,10 +548,9 @@
       ],
       "id": "14c1ac96-aeef-40a7-9943-de97a92ce40d",
       "name": "Discord reincidencia",
-      "webhookId": "dcae0bd7-47c6-4f20-aa53-edc17e7fb22f",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -806,12 +802,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "e0365ec9-2e90-4508-97f3-b60124f278cd",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "97349534626551678f72660d0cc4978642716e23656898d110b0e6f6f47444da"
+    "instanceId": "TU_INSTANCE_ID_AQUI"
   },
   "nodeGroups": [],
-  "id": "N5ydW8HSPF2BNIz5",
+  "id": "TU_WORKFLOW_ID_RD4_AQUI",
   "tags": []
 }

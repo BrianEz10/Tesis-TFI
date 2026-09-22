@@ -39,7 +39,7 @@
       "name": "Get last_run",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -110,17 +110,17 @@
         "resource": "message",
         "guildId": {
           "__rl": true,
-          "value": "1524899358875844801",
+          "value": "TU_GUILD_ID_AQUI",
           "mode": "list",
           "cachedResultName": "Alertas SOC",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI"
         },
         "channelId": {
           "__rl": true,
-          "value": "1524899359404331150",
+          "value": "TU_CHANNEL_ID_AQUI",
           "mode": "list",
           "cachedResultName": "alertas-soc",
-          "cachedResultUrl": "https://discord.com/channels/1524899358875844801/1524899359404331150"
+          "cachedResultUrl": "https://discord.com/channels/TU_GUILD_ID_AQUI/TU_CHANNEL_ID_AQUI"
         },
         "content": "=⚠️ **RD-6: Abuso de sudo detectado**\nUsuario: {{ $('Split Out').first().json.user }}\nCategorías: {{ $('Split Out').first().json.categories }}\nCantidad de comandos: {{ $('Split Out').first().json.command_count }}\nPrimer evento: {{ $('Split Out').first().json.first_seen_local}}\nÚltimo evento: {{ $('Split Out').first().json.last_seen_local }}\n\nComandos: {{ $('Split Out').first().json.commands_evidence }}\n\n_Requiere revisión manual — sin bloqueo automático._",
         "options": {}
@@ -133,10 +133,9 @@
       ],
       "id": "0e294be6-b32e-4d1f-b1db-f9f5788f0fd1",
       "name": "Discord Notify",
-      "webhookId": "d259ab77-65f1-4325-903d-4373256595f6",
       "credentials": {
         "discordBotApi": {
-          "id": "ajvHMeDKIJjgIo9t",
+          "id": "TU_CREDENCIAL_DISCORD_AQUI",
           "name": "Discord Bot account"
         }
       }
@@ -159,7 +158,7 @@
       "name": "Update workflow_state",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -182,7 +181,7 @@
       "name": "Insert Alert",
       "credentials": {
         "postgres": {
-          "id": "qsoU1UxYvwAY6xk7",
+          "id": "TU_CREDENCIAL_POSTGRES_AQUI",
           "name": "Postgres account"
         }
       }
@@ -281,12 +280,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "ad68dcd8-9a9a-4268-862e-9fcd2260dcb5",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "97349534626551678f72660d0cc4978642716e23656898d110b0e6f6f47444da"
+    "instanceId": "TU_INSTANCE_ID_AQUI"
   },
   "nodeGroups": [],
-  "id": "4VdwBPU7b9haVOqE",
+  "id": "TU_WORKFLOW_ID_RD6_AQUI",
   "tags": []
 }

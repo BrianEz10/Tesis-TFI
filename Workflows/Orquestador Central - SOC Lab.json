@@ -50,9 +50,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "nypoRcEg7DwqSKLf",
+          "value": "TU_WORKFLOW_ID_RD1_AQUI",
           "mode": "list",
-          "cachedResultUrl": "/workflow/nypoRcEg7DwqSKLf",
+          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD1_AQUI",
           "cachedResultName": "RD-1 - Fuerza Bruta SSH"
         },
         "workflowInputs": {
@@ -174,9 +174,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "rml46feHbHjVyvGX",
+          "value": "TU_WORKFLOW_ID_RD2_AQUI",
           "mode": "list",
-          "cachedResultUrl": "/workflow/rml46feHbHjVyvGX",
+          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD2_AQUI",
           "cachedResultName": "RD-2 - Escaneo de Puertos"
         },
         "workflowInputs": {
@@ -265,9 +265,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "SeK9JNRCfyiMpjfA",
+          "value": "TU_WORKFLOW_ID_RD3_AQUI",
           "mode": "list",
-          "cachedResultUrl": "/workflow/SeK9JNRCfyiMpjfA",
+          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD3_AQUI",
           "cachedResultName": "RD-3 - Login como Root"
         },
         "workflowInputs": {
@@ -356,9 +356,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "N5ydW8HSPF2BNIz5",
+          "value": "TU_WORKFLOW_ID_RD4_AQUI",
           "mode": "list",
-          "cachedResultUrl": "/workflow/N5ydW8HSPF2BNIz5",
+          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD4_AQUI",
           "cachedResultName": "RD-4 - Inyección SQL"
         },
         "workflowInputs": {
@@ -446,9 +446,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "8vkuUp2puaMUlnR2",
+          "value": "TU_WORKFLOW_ID_RD5_AQUI",
           "mode": "list",
-          "cachedResultUrl": "/workflow/8vkuUp2puaMUlnR2",
+          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD5_AQUI",
           "cachedResultName": "RD-5 - Directory Traversal"
         },
         "workflowInputs": {
@@ -536,9 +536,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "4VdwBPU7b9haVOqE",
+          "value": "TU_WORKFLOW_ID_RD6_AQUI",
           "mode": "list",
-          "cachedResultUrl": "/workflow/4VdwBPU7b9haVOqE",
+          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD6_AQUI",
           "cachedResultName": "RD-6 - Abuso de Sudo"
         },
         "workflowInputs": {
@@ -724,11 +724,10 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "840b559a-9363-4617-b5df-2e95ac63abfa",
   "meta": {
-    "instanceId": "97349534626551678f72660d0cc4978642716e23656898d110b0e6f6f47444da"
+    "instanceId": "TU_INSTANCE_ID_AQUI"
   },
   "nodeGroups": [],
-  "id": "MNKejZw3auhUFAKP",
+  "id": "TU_WORKFLOW_ID_ORQUESTADOR_AQUI",
   "tags": []
 }
