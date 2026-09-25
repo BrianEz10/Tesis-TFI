@@ -229,53 +229,32 @@ for regla in ["RD-1", "RD-2", "RD-3", "RD-4", "RD-5", "RD-6"]:
           f"| N={len(sub)}")
 
 # ---------------------------------------------------------------------------
-# 5. MATRIZ DE CONFUSIÓN Y MÉTRICAS DE CLASIFICACIÓN
-#    A partir de la ronda TN/FP/FN documentada (18 casos adicionales + 60 TP)
+# 5. CASOS DE BORDE DE LAS REGLAS (no son métricas de desempeño del sistema)
+#    Documentan el comportamiento de cada regla en sus límites. NO se reportan
+#    precisión/recall/FPR agregadas, porque estos casos fueron diseñados (una
+#    cantidad fija de cada tipo) y cualquier métrica agregada reflejaría esa
+#    composición elegida, no un desempeño sobre tráfico representativo.
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
-print("MATRIZ DE CONFUSIÓN Y MÉTRICAS DE CLASIFICACIÓN")
+print("CASOS DE BORDE DE LAS REGLAS (comportamiento en los límites)")
 print("=" * 70)
 
-TP = 60  # las 60 repeticiones originales, todas detectadas correctamente
+TP = 60  # las 60 repeticiones de detección: ataques reales correctamente detectados
+TN = 4   # actividad benigna correctamente ignorada (RD-1, RD-2, RD-4, RD-6)
+FP = 4   # actividad legítima que cruza el umbral (RD-1, RD-2, RD-4, RD-6)
+FN = 6   # ataques que evaden la detección (uno por regla)
 
-# Solo RD-1, RD-2, RD-4, RD-6 tienen TN/FP definidos (RD-3 y RD-5 no aplican por diseño)
-TN = 4   # 1 por regla en RD-1, RD-2, RD-4, RD-6
-FP = 4   # 1 por regla en RD-1, RD-2, RD-4, RD-6
-FN = 6   # 1 por regla en las 6 reglas (todas tienen caso FN)
-
-precision = TP / (TP + FP)
-recall = TP / (TP + FN)
-f1 = 2 * precision * recall / (precision + recall)
-fpr = FP / (FP + TN)
-
-print(f"TP={TP}, TN={TN}, FP={FP}, FN={FN}")
-print(f"Precisión: {precision:.4f}")
-print(f"Recall (sensibilidad): {recall:.4f}")
-print(f"F1-score: {f1:.4f}")
-print(f"FPR (tasa de falsos positivos): {fpr:.4f}")
-print("\n⚠️  ADVERTENCIA METODOLÓGICA IMPORTANTE:")
-print("TN y FP se estiman sobre una muestra muy pequeña (4 casos cada uno, 1 por regla")
-print("en las 4 reglas donde aplica). Cualquier intervalo de confianza calculado sobre")
-print("n=8 (FP+TN) va a ser extremadamente ancho y poco informativo. Esto debe declararse")
-print("como limitación explícita en la tesis, NO ocultarse ni maquillarse con IC angostos")
-print("artificiales (el error exacto que cometió la versión anterior del trabajo).")
-
-# Intervalo de Wilson para la FPR, honesto sobre lo ancho que va a salir
-def wilson_ci(successes, n, z=1.96):
-    if n == 0:
-        return (None, None)
-    p_hat = successes / n
-    denom = 1 + z**2 / n
-    center = (p_hat + z**2 / (2*n)) / denom
-    margin = (z * np.sqrt(p_hat*(1-p_hat)/n + z**2/(4*n**2))) / denom
-    return (max(0, center - margin), min(1, center + margin))
-
-fpr_ci = wilson_ci(FP, FP + TN)
-precision_ci = wilson_ci(TP, TP + FP)
-recall_ci = wilson_ci(TP, TP + FN)
-print(f"\nIC 95% Wilson FPR: [{fpr_ci[0]:.3f}, {fpr_ci[1]:.3f}]  <- MUY ancho, n=8")
-print(f"IC 95% Wilson Precisión: [{precision_ci[0]:.3f}, {precision_ci[1]:.3f}]")
-print(f"IC 95% Wilson Recall: [{recall_ci[0]:.3f}, {recall_ci[1]:.3f}]")
+print(f"Ataques detectados (TP): {TP}")
+print(f"Casos benignos correctamente ignorados (TN): {TN}")
+print(f"Casos benignos que cruzaron el umbral (FP): {FP}")
+print(f"Ataques que evadieron la detección (FN): {FN}")
+print()
+print("NOTA: estos conteos NO se agregan en métricas de precisión/recall/FPR,")
+print("porque la cantidad de cada tipo fue elegida por diseño. Su valor es")
+print("cualitativo: cada caso documenta un límite concreto de una regla")
+print("(ver §13.5 y §14.4 de la tesis). Una estimación de la tasa real de")
+print("falsos positivos requeriría un corpus independiente de tráfico legítimo,")
+print("planteado como trabajo futuro.")
 
 # ---------------------------------------------------------------------------
 # 6. GUARDAR RESUMEN EN CSV
@@ -295,12 +274,8 @@ with open("/home/claude/resumen_resultados.csv", "w", newline="") as f:
     writer.writerow(["MTTR_p_valor", f"{res_mttr['p']:.6f}"])
     writer.writerow(["MTTR_r_efecto", f"{res_mttr['r']:.3f}"])
     writer.writerow(["MTTR_reduccion_pct", f"{res_mttr['reduction_pct']:.1f}"])
-    writer.writerow(["TP", TP]); writer.writerow(["TN", TN])
-    writer.writerow(["FP", FP]); writer.writerow(["FN", FN])
-    writer.writerow(["precision", f"{precision:.4f}"])
-    writer.writerow(["recall", f"{recall:.4f}"])
-    writer.writerow(["f1", f"{f1:.4f}"])
-    writer.writerow(["fpr", f"{fpr:.4f}"])
+    writer.writerow(["casos_borde_TP", TP]); writer.writerow(["casos_borde_TN", TN])
+    writer.writerow(["casos_borde_FP", FP]); writer.writerow(["casos_borde_FN", FN])
 
 print("\n\nArchivos generados: dataset_pareado.csv, resumen_resultados.csv")
 
