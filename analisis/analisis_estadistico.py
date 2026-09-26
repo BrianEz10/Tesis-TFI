@@ -286,6 +286,25 @@ print("\n\nArchivos generados: dataset_pareado.csv, resumen_resultados.csv")
 # 8. ANÁLISIS DE SENSIBILIDAD DEL BRAZO DE CONTROL
 #    Cómo varía la reducción del MTTA según el intervalo de revisión manual asumido
 # ---------------------------------------------------------------------------
+
+# 7bis. ROBUSTEZ: Wilcoxon del MTTA excluyendo RD-6 (cuyas 10 repeticiones no son
+#       temporalmente independientes; ver §14.2 de la tesis). Confirma que la
+#       conclusión no depende de esa regla.
+print("\n" + "=" * 70)
+print("ROBUSTEZ — MTTA excluyendo RD-6 (N=50)")
+print("=" * 70)
+sub_sin_rd6 = [r for r in rows if r["regla"] != "RD-6"]
+auto_s = np.array([r["mtta_auto"] for r in sub_sin_rd6])
+manual_s = np.array([r["mtta_manual"] for r in sub_sin_rd6])
+stat_s, p_s = stats.wilcoxon(manual_s, auto_s, alternative="greater")
+n_s = len(auto_s); neff_s = np.sum((manual_s - auto_s) != 0)
+mu_s = neff_s*(neff_s+1)/4; sigma_s = np.sqrt(neff_s*(neff_s+1)*(2*neff_s+1)/24)
+z_s = (stat_s - mu_s)/sigma_s; r_s = min(z_s/np.sqrt(n_s), 1.0)
+red_s = (np.median(manual_s) - np.median(auto_s))/np.median(manual_s)*100
+print(f"W={stat_s:.0f}, p={p_s:.3e}, z={z_s:.3f}, r={r_s:.3f}, reducción={red_s:.1f}%")
+print("(La tesis reporta: W=1197, p=5,96e-10, r=0,764, reducción=61,1%)")
+
+# ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 print("ANÁLISIS DE SENSIBILIDAD — reducción del MTTA por intervalo de revisión")
 print("=" * 70)
