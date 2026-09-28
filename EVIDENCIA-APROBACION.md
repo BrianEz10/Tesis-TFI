@@ -1,0 +1,21 @@
+# Nota sobre la evidencia de la aprobación humana (R5)
+
+**Para incluir en el repositorio (por ejemplo, como `EVIDENCIA-APROBACION.md`) y para incorporar al §13.7 de la tesis.**
+
+---
+
+El tribunal, en su tercera devolución (requisito R5 / hallazgo T2), solicitó los registros de ejecución de n8n (tablas `execution_entity` y `execution_data`) de las 50 repeticiones con bloqueo, para acreditar la latencia de la aprobación humana.
+
+Al momento de preparar esta acreditación se constató que dichos registros ya no están disponibles: la instancia de n8n aplica una política de retención automática de ejecuciones, y las correspondientes a la campaña de medición (25 al 31 de agosto de 2026) fueron purgadas. La ejecución más antigua que conserva la tabla `execution_entity` es del 14 de septiembre de 2026, posterior a la campaña.
+
+**La evidencia primaria de la cadena de aprobación, sin embargo, sí está disponible y se publica** en el archivo `datos-campana.sql` (exportación de las tablas `alerts` y `playbook_runs`). Esas tablas constituyen el registro de auditoría del propio sistema —no un derivado de las ejecuciones de n8n— y contienen, para cada una de las 50 repeticiones con bloqueo:
+
+- `alerts.created_at`: momento en que el sistema registró la alerta (tras la lectura del log por el Cron).
+- `playbook_runs.executed_at`: momento en que se ejecutó efectivamente el bloqueo, fijado por el `NOW()` del `INSERT` en `playbook_runs`.
+- `playbook_runs.result` = `banned` y `parameters` con `approved_by: manual`, que dan cuenta de que la acción se ejecutó tras la aprobación manual del analista.
+
+El intervalo `created_at → executed_at` comprende el envío del mensaje a Discord, la espera de la aprobación humana (nodo «Send and Wait»), el retorno a n8n, la ejecución del comando por SSH y el registro en `playbook_runs`. Sobre las 50 repeticiones con bloqueo, ese intervalo tiene **mediana 4,1 s, media 7,4 s y rango 2,3–36,0 s**. El script publicado (`analisis_estadistico.py`) reproduce estas cifras a partir de los mismos timestamps.
+
+En consecuencia, aunque no puedan aportarse los registros internos de n8n por haber sido purgados, la evidencia de la cadena de aprobación y ejecución está publicada en el registro de auditoría del sistema y es verificable de forma independiente. La latencia reportada en el §13.7 y §14.6 se corrigió para reflejar esta medición real (mediana 4,1 s), en reemplazo de la estimación previa de ~10 segundos.
+
+**Recomendación de configuración para trabajo futuro:** para preservar la trazabilidad de las ejecuciones en futuras campañas, conviene desactivar o extender la política de retención de n8n (variables de entorno `EXECUTIONS_DATA_PRUNE` y `EXECUTIONS_DATA_MAX_AGE`) antes de iniciar la medición.
