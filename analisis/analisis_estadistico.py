@@ -325,7 +325,7 @@ med_a = np.median(mtta_auto_arr)
 print(f"{'Intervalo':>10} | {'Med. manual':>12} | {'Reducción':>10} | {'p (una cola, dir. H1)':>22}")
 print("-" * 62)
 punto_equilibrio = None
-for interval in range(5, 26):
+for interval in range(5, 31):
     manual = []
     for regla, id_, ev, created, executed in raw:
         e = t(ev)
@@ -342,15 +342,14 @@ for interval in range(5, 26):
     marca = ""
     if punto_equilibrio is None and red > 0:
         punto_equilibrio = interval
-        marca = "  <- punto de equilibrio (el sistema pasa a ser más rápido)"
-    # imprimir solo algunos para no saturar, pero marcar el equilibrio
-    if interval in (5, 10, 15, 20, 25) or marca:
-        print(f"{interval:>8}min | {med_m/60:>10.2f}min | {red:>+8.1f}% | {p_str:>22}{marca}")
+    # imprimir TODAS las filas de la grilla (el tribunal pidió la grilla completa)
+    print(f"{interval:>8}min | {med_m/60:>10.2f}min | {red:>+8.1f}% | {p_str:>22}")
 
 print("-" * 62)
-if punto_equilibrio:
-    print(f"PUNTO DE EQUILIBRIO: con revisión manual cada >= {punto_equilibrio} min, la automatización es más rápida.")
-    print(f"Por debajo de ese intervalo, el sistema no aporta ventaja de tiempo (comparte el piso del cron de 5 min).")
+print("NOTA: la reducción NO es monótona con el intervalo. Esto refleja el calendario")
+print("de generación de los ataques (concentrados en una fase fija del ciclo del Cron),")
+print("no una propiedad del sistema. Ver §13.3 de la tesis para la interpretación correcta")
+print("y la referencia estructural bajo llegadas uniformes.")
 
 # 7. BOXPLOTS — MTTA y MTTR, control (manual) vs. experimental (automatizado)
 # ---------------------------------------------------------------------------
