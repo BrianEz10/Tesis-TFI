@@ -12,7 +12,7 @@ Al momento de preparar esta acreditación se constató que dichos registros ya n
 
 - `alerts.created_at`: momento en que el sistema registró la alerta (tras la lectura del log por el Cron).
 - `playbook_runs.executed_at`: momento en que se ejecutó efectivamente el bloqueo, fijado por el `NOW()` del `INSERT` en `playbook_runs`.
-- `playbook_runs.result` = `banned` y `parameters` con `approved_by: manual`, que dan cuenta de que la acción se ejecutó tras la aprobación manual del analista.
+- `playbook_runs.result` = `banned`, que indica que la acción de bloqueo se ejecutó. Debe aclararse que el campo `parameters.approved_by: manual` aparece únicamente en un subconjunto de los registros (los del sub-workflow de RD-1) y es un valor constante escrito por la sentencia INSERT del workflow, no una marca independiente capturada en el momento de la aprobación; por lo tanto, no constituye por sí mismo una prueba verificable del acto de aprobación. La evidencia disponible acredita la duración de la cadena completa (created_at → executed_at), no el instante aislado de la aprobación humana.
 
 El intervalo `created_at → executed_at` comprende el envío del mensaje a Discord, la espera de la aprobación humana (nodo «Send and Wait»), el retorno a n8n, la ejecución del comando por SSH y el registro en `playbook_runs`. Sobre las 50 repeticiones con bloqueo, ese intervalo tiene **mediana 4,1 s, media 7,4 s y rango 2,3–36,0 s**. El script publicado (`analisis_estadistico.py`) reproduce estas cifras a partir de los mismos timestamps.
 

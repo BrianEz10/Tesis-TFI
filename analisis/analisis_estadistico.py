@@ -351,6 +351,35 @@ print("de generación de los ataques (concentrados en una fase fija del ciclo de
 print("no una propiedad del sistema. Ver §13.3 de la tesis para la interpretación correcta")
 print("y la referencia estructural bajo llegadas uniformes.")
 
+# 8bis. ESTIMADOR DE HODGES-LEHMANN para los intervalos de 10 y 20 minutos.
+#   Es el estimador que corresponde a la prueba de Wilcoxon (la pseudomediana:
+#   mediana de los promedios de Walsh de las diferencias pareadas). Explica por
+#   qué el Wilcoxon puede ser significativo aunque la DIFERENCIA DE MEDIANAS sea
+#   negativa: son dos estadísticos distintos. Ver §13.3 de la tesis.
+print("\n" + "=" * 70)
+print("ESTIMADOR DE HODGES-LEHMANN (pseudomediana de las diferencias pareadas)")
+print("=" * 70)
+
+def hodges_lehmann(diffs):
+    n = len(diffs)
+    walsh = [(diffs[i] + diffs[j]) / 2 for i in range(n) for j in range(i, n)]
+    return np.median(walsh)
+
+for iv in [10, 20]:
+    manual = np.array([
+        (next_checkpoint_interval(t(ev), iv) - t(ev)).total_seconds()
+        for _, _, ev, _, _ in raw
+    ])
+    diff = manual - mtta_auto_arr  # positivo = sistema automatizado más rápido
+    hl = hodges_lehmann(diff)
+    med_diff = np.median(diff)
+    _, p = stats.wilcoxon(manual, mtta_auto_arr, alternative="greater")
+    print(f"{iv} min: diferencia de medianas={np.median(manual)-np.median(mtta_auto_arr):+.1f}s | "
+          f"mediana de diferencias pareadas={med_diff:+.1f}s | "
+          f"Hodges-Lehmann={hl:+.1f}s | Wilcoxon p(dir H1)={p:.4f}")
+print("A los 10 min, pese a una diferencia de medianas negativa, el H-L es positivo")
+print("(+103,9 s): en la mayoría de los pares el sistema fue más rápido.")
+
 # 7. BOXPLOTS — MTTA y MTTR, control (manual) vs. experimental (automatizado)
 # ---------------------------------------------------------------------------
 import matplotlib
