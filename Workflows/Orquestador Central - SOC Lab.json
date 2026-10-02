@@ -14,7 +14,7 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
-        0,
+        96,
         0
       ],
       "id": "7a5f70c6-d42f-4926-b9cb-b545f80e685d",
@@ -27,7 +27,7 @@
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [
-        208,
+        256,
         0
       ],
       "id": "e53de86e-7003-4c4b-8f09-dc531a2a992e",
@@ -50,9 +50,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "TU_WORKFLOW_ID_RD1_AQUI",
+          "value": "nypoRcEg7DwqSKLf",
           "mode": "list",
-          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD1_AQUI",
+          "cachedResultUrl": "/workflow/nypoRcEg7DwqSKLf",
           "cachedResultName": "RD-1 - Fuerza Bruta SSH"
         },
         "workflowInputs": {
@@ -96,7 +96,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        896,
+        864,
         -448
       ],
       "id": "c39b1612-3a34-4cf9-8aec-20fef7be9845",
@@ -142,23 +142,23 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict",
+            "typeValidation": "loose",
             "version": 3
           },
           "conditions": [
             {
               "id": "6f5a4481-79cb-4e4a-8757-90277af138b1",
-              "leftValue": "",
-              "rightValue": "",
+              "leftValue": "={{ $json.tiene_rd1 }}",
+              "rightValue": "=true",
               "operator": {
-                "type": "string",
-                "operation": "equals",
-                "name": "filter.operator.equals"
+                "type": "boolean",
+                "operation": "equals"
               }
             }
           ],
           "combinator": "and"
         },
+        "looseTypeValidation": true,
         "options": {}
       },
       "type": "n8n-nodes-base.if",
@@ -174,9 +174,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "TU_WORKFLOW_ID_RD2_AQUI",
+          "value": "rml46feHbHjVyvGX",
           "mode": "list",
-          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD2_AQUI",
+          "cachedResultUrl": "/workflow/rml46feHbHjVyvGX",
           "cachedResultName": "RD-2 - Escaneo de Puertos"
         },
         "workflowInputs": {
@@ -220,7 +220,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        896,
+        864,
         -272
       ],
       "id": "7e1382e6-d020-4328-a009-e24d92726354",
@@ -265,9 +265,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "TU_WORKFLOW_ID_RD3_AQUI",
+          "value": "SeK9JNRCfyiMpjfA",
           "mode": "list",
-          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD3_AQUI",
+          "cachedResultUrl": "/workflow/SeK9JNRCfyiMpjfA",
           "cachedResultName": "RD-3 - Login como Root"
         },
         "workflowInputs": {
@@ -311,7 +311,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        896,
+        864,
         -96
       ],
       "id": "2c3a0243-62ee-4dc5-b7ff-23b5efec040d",
@@ -356,9 +356,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "TU_WORKFLOW_ID_RD4_AQUI",
+          "value": "N5ydW8HSPF2BNIz5",
           "mode": "list",
-          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD4_AQUI",
+          "cachedResultUrl": "/workflow/N5ydW8HSPF2BNIz5",
           "cachedResultName": "RD-4 - Inyección SQL"
         },
         "workflowInputs": {
@@ -402,7 +402,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        896,
+        864,
         80
       ],
       "id": "5f496914-bc06-47fe-972e-1d0ee13017ed",
@@ -446,9 +446,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "TU_WORKFLOW_ID_RD5_AQUI",
+          "value": "8vkuUp2puaMUlnR2",
           "mode": "list",
-          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD5_AQUI",
+          "cachedResultUrl": "/workflow/8vkuUp2puaMUlnR2",
           "cachedResultName": "RD-5 - Directory Traversal"
         },
         "workflowInputs": {
@@ -492,7 +492,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        896,
+        864,
         256
       ],
       "id": "a3a950fa-4e58-4e78-86b1-b83bd21f3206",
@@ -536,9 +536,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "TU_WORKFLOW_ID_RD6_AQUI",
+          "value": "4VdwBPU7b9haVOqE",
           "mode": "list",
-          "cachedResultUrl": "/workflow/TU_WORKFLOW_ID_RD6_AQUI",
+          "cachedResultUrl": "/workflow/4VdwBPU7b9haVOqE",
           "cachedResultName": "RD-6 - Abuso de Sudo"
         },
         "workflowInputs": {
@@ -582,7 +582,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        896,
+        864,
         432
       ],
       "id": "5638fe63-7d55-4c6f-afe4-5eeaa7e72438",
@@ -724,10 +724,11 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
+  "versionId": "afefb7ae-d054-4837-8054-f90c962e2a6e",
   "meta": {
-    "instanceId": "TU_INSTANCE_ID_AQUI"
+    "instanceId": "97349534626551678f72660d0cc4978642716e23656898d110b0e6f6f47444da"
   },
   "nodeGroups": [],
-  "id": "TU_WORKFLOW_ID_ORQUESTADOR_AQUI",
+  "id": "MNKejZw3auhUFAKP",
   "tags": []
 }
