@@ -4,7 +4,7 @@ Comparación fase de control (calculada) vs. fase experimental (medida) sobre 60
 (10 repeticiones x 6 reglas de detección: RD-1 a RD-6)
 
 Datos crudos: exportados de las tablas `alerts` y `playbook_runs` de PostgreSQL durante
-la sesión de medición del 25/8 al 14/9 de 2026. RD-6 no genera `executed_at` (regla
+la sesión de medición del 25 al 31 de agosto de 2026 (los 14 casos de borde: 14/9). RD-6 no genera `executed_at` (regla
 fire-and-forget, sin bloqueo automático), por lo que se excluye del análisis de MTTR.
 
 Metodología fase de control: no se ejecutó en vivo. Se calcula matemáticamente a partir
@@ -350,6 +350,45 @@ print("NOTA: la reducción NO es monótona con el intervalo. Esto refleja el cal
 print("de generación de los ataques (concentrados en una fase fija del ciclo del Cron),")
 print("no una propiedad del sistema. Ver §13.3 de la tesis para la interpretación correcta")
 print("y la referencia estructural bajo llegadas uniformes.")
+
+# 8bis. ESTIMADOR DE HODGES-LEHMANN para los intervalos de 10 y 20 minutos.
+#   Es el estimador que corresponde a la prueba de Wilcoxon (la pseudomediana:
+#   mediana de los promedios de Walsh de las diferencias pareadas). Explica por
+#   qué el Wilcoxon puede ser significativo aunque la DIFERENCIA DE MEDIANAS sea
+#   negativa: son dos estadísticos distintos. Ver §13.3 de la tesis.
+print("\n" + "=" * 70)
+print("ESTIMADOR DE HODGES-LEHMANN (pseudomediana de las diferencias pareadas)")
+print("=" * 70)
+
+def hodges_lehmann(diffs):
+    n = len(diffs)
+    walsh = [(diffs[i] + diffs[j]) / 2 for i in range(n) for j in range(i, n)]
+    return np.median(walsh)
+
+for iv in [10, 20]:
+    manual = np.array([
+        (next_checkpoint_interval(t(ev), iv) - t(ev)).total_seconds()
+        for _, _, ev, _, _ in raw
+    ])
+    diff = manual - mtta_auto_arr  # positivo = sistema automatizado más rápido
+    hl = hodges_lehmann(diff)
+    med_diff = np.median(diff)
+    _, p = stats.wilcoxon(manual, mtta_auto_arr, alternative="greater")
+    favorables = int(np.sum(diff > 0)); desfav = int(np.sum(diff < 0))
+    # IC del estimador de Hodges-Lehmann por el método de Wilcoxon (percentiles de los promedios de Walsh)
+    walsh_sorted = np.sort([(diff[i]+diff[j])/2 for i in range(len(diff)) for j in range(i, len(diff))])
+    nw = len(walsh_sorted)
+    # IC 95% aproximado: percentiles 2.5 y 97.5 de los promedios de Walsh
+    hl_low = walsh_sorted[int(0.025*nw)]; hl_high = walsh_sorted[int(0.975*nw)]
+    print(f"{iv} min: diferencia de medianas={np.median(manual)-np.median(mtta_auto_arr):+.1f}s | "
+          f"mediana de diferencias pareadas={med_diff:+.1f}s | "
+          f"Hodges-Lehmann={hl:+.1f}s [IC95%: {hl_low:+.1f}, {hl_high:+.1f}] | "
+          f"signos: {favorables} a favor / {desfav} en contra | p(dir H1)={p:.4f}")
+print("A los 10 min, pese a una diferencia de medianas negativa, el H-L es positivo")
+print("(+103,9 s). ATENCIÓN: esto NO significa que la mayoría de los pares favorezca")
+print("al sistema (de hecho, 24 favorables vs 36 desfavorables). Significa que la")
+print("mayoría de los PROMEDIOS DE WALSH son positivos: las diferencias favorables son")
+print("de mayor magnitud y ocupan los rangos más altos de la prueba de Wilcoxon.")
 
 # 7. BOXPLOTS — MTTA y MTTR, control (manual) vs. experimental (automatizado)
 # ---------------------------------------------------------------------------
