@@ -487,8 +487,17 @@ for iv in [10, 20]:
     # IC del estimador de Hodges-Lehmann por el método de Wilcoxon (percentiles de los promedios de Walsh)
     walsh_sorted = np.sort([(diff[i]+diff[j])/2 for i in range(len(diff)) for j in range(i, len(diff))])
     nw = len(walsh_sorted)
-    # IC 95% aproximado: percentiles 2.5 y 97.5 de los promedios de Walsh
-    hl_low = walsh_sorted[int(0.025*nw)]; hl_high = walsh_sorted[int(0.975*nw)]
+    # IC 95% DISTRIBUTION-FREE del estimador de Hodges-Lehmann (método de Wilcoxon):
+    # los límites son los estadísticos de orden k+1 y M-k de los promedios de Walsh,
+    # con k = n(n+1)/4 - z_{0.975} * sqrt(n(n+1)(2n+1)/24).
+    # NO es el percentil 2,5/97,5 ingenuo: ese método daba IC incoherentes con el p
+    # (p. ej. un IC que incluía el cero junto a un p ≈ 2e-7). Este método es el que
+    # corresponde a la inversión de la prueba de Wilcoxon de los rangos con signo.
+    n_hl = len(diff)
+    z975 = stats.norm.ppf(0.975)
+    C = n_hl*(n_hl+1)/4.0 - z975*np.sqrt(n_hl*(n_hl+1)*(2*n_hl+1)/24.0)
+    k = int(np.floor(C))
+    hl_low = walsh_sorted[k]; hl_high = walsh_sorted[nw-1-k]
     print(f"{iv} min: diferencia de medianas={np.median(manual)-np.median(mtta_auto_arr):+.1f}s | "
           f"mediana de diferencias pareadas={med_diff:+.1f}s | "
           f"Hodges-Lehmann={hl:+.1f}s [IC95%: {hl_low:+.1f}, {hl_high:+.1f}] | "
@@ -500,10 +509,11 @@ print("mayoría de los PROMEDIOS DE WALSH son positivos: las diferencias favorab
 print("de mayor magnitud y ocupan los rangos más altos de la prueba de Wilcoxon.")
 print()
 print("NOTA sobre coherencia IC/p (hallazgo T1): el IC del estimador de Hodges-Lehmann")
-print("es BILATERAL al 95 % (percentiles 2,5 y 97,5 de los promedios de Walsh), por eso")
-print("a 10 min incluye el cero. El p = 0,0333 es UNILATERAL (dirección de H1: sistema")
-print("más rápido). No son contradictorios: miden cosas distintas (un intervalo de dos")
-print("colas frente a una prueba de una cola). A 20 min ambos coinciden en el signo.")
+print("es BILATERAL al 95 % (método de orden de Wilcoxon sobre los promedios de Walsh),")
+print("mientras que los p reportados son UNILATERALES en la dirección de H1. Por eso a")
+print("10 min el IC incluye el cero (coherente con un p bilateral de 0,067, cercano al")
+print("umbral) y a 20 min lo excluye (p bilateral 4,7e-07). No son contradictorios: un")
+print("intervalo de dos colas y una prueba de una cola miden cosas distintas.")
 
 # 7. BOXPLOTS — MTTA y MTTR, control (manual) vs. experimental (automatizado)
 # ---------------------------------------------------------------------------
