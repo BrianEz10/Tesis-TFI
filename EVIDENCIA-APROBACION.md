@@ -1,8 +1,4 @@
-# Nota sobre la evidencia de la aprobación humana (R5)
-
-**Para incluir en el repositorio (por ejemplo, como `EVIDENCIA-APROBACION.md`) y para incorporar al §13.7 de la tesis.**
-
----
+# Nota sobre la evidencia de la aprobación humana
 
 El tribunal, en su tercera devolución (requisito R5 / hallazgo T2), solicitó los registros de ejecución de n8n (tablas `execution_entity` y `execution_data`) de las 50 repeticiones con bloqueo, para acreditar la latencia de la aprobación humana.
 
@@ -14,8 +10,10 @@ Al momento de preparar esta acreditación se constató que dichos registros ya n
 - `playbook_runs.executed_at`: momento en que se ejecutó efectivamente el bloqueo, fijado por el `NOW()` del `INSERT` en `playbook_runs`.
 - `playbook_runs.result` = `banned`, que indica que la acción de bloqueo se ejecutó. Debe aclararse que el campo `parameters.approved_by: manual` aparece únicamente en un subconjunto de los registros (los del sub-workflow de RD-1) y es un valor constante escrito por la sentencia INSERT del workflow, no una marca independiente capturada en el momento de la aprobación; por lo tanto, no constituye por sí mismo una prueba verificable del acto de aprobación. La evidencia disponible acredita la duración de la cadena completa (created_at → executed_at), no el instante aislado de la aprobación humana.
 
+**Salvedad de RD-5.** En la regla RD-5 (directory traversal), la rama de rechazo del sub-workflow registra `result = banned` aun cuando el analista rechaza la acción, por el defecto de semántica de `started_at`/`result` documentado en el §13.7. En consecuencia, para RD-5 el valor `banned` **no** debe interpretarse como confirmación de que el bloqueo se ejecutó; la cadena temporal `created_at → executed_at` sí es válida, pero el campo `result` de esa regla no distingue aprobación de rechazo. Esta limitación está declarada en el §13.7 y no afecta a las demás reglas.
+
 El intervalo `created_at → executed_at` comprende el envío del mensaje a Discord, la espera de la aprobación humana (nodo «Send and Wait»), el retorno a n8n, la ejecución del comando por SSH y el registro en `playbook_runs`. Sobre las 50 repeticiones con bloqueo, ese intervalo tiene **mediana 4,1 s, media 7,4 s y rango 2,3–36,0 s**. El script publicado (`analisis_estadistico.py`) reproduce estas cifras a partir de los mismos timestamps.
 
-En consecuencia, aunque no puedan aportarse los registros internos de n8n por haber sido purgados, la evidencia de la cadena de aprobación y ejecución está publicada en el registro de auditoría del sistema y es verificable de forma independiente. La latencia reportada en el §13.7 y §14.6 se corrigió para reflejar esta medición real (mediana 4,1 s), en reemplazo de la estimación previa de ~10 segundos.
+En consecuencia, aunque no puedan aportarse los registros internos de n8n por haber sido purgados, la evidencia de la cadena completa de aprobación y ejecución (`created_at → executed_at`) está publicada en el registro de auditoría del sistema. Corresponde aclarar el alcance de esa evidencia: acredita la **duración de la cadena completa**, pero **la latencia del acto de aprobación humana en sí misma no es verificable con evidencia externa al registro del sistema** —esa verificación externa habría requerido los registros de ejecución de n8n, hoy purgados—. La latencia reportada en el §13.7 y §14.6 se corrigió para reflejar esta medición real (mediana 4,1 s de la cadena completa), en reemplazo de la estimación previa de ~10 segundos.
 
 **Recomendación de configuración para trabajo futuro:** para preservar la trazabilidad de las ejecuciones en futuras campañas, conviene desactivar o extender la política de retención de n8n (variables de entorno `EXECUTIONS_DATA_PRUNE` y `EXECUTIONS_DATA_MAX_AGE`) antes de iniciar la medición.

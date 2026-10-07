@@ -3,16 +3,27 @@ Análisis estadístico — Laboratorio SOC Académico con n8n
 Comparación fase de control (calculada) vs. fase experimental (medida) sobre 60 pares reales
 (10 repeticiones x 6 reglas de detección: RD-1 a RD-6)
 
-Datos crudos: exportados de las tablas `alerts` y `playbook_runs` de PostgreSQL durante
-la sesión de medición del 25 al 31 de agosto de 2026 (los 14 casos de borde: 14/9). RD-6 no genera `executed_at` (regla
-fire-and-forget, sin bloqueo automático), por lo que se excluye del análisis de MTTR.
+Fuente de los datos (exportados de las tablas `alerts` y `playbook_runs` de PostgreSQL):
+  - Sesiones de medición de las 60 repeticiones: 25, 26, 29 y 31 de agosto de 2026
+    (RD-1 y RD-2: 25/08; RD-3: 26/08; RD-4: 29/08; RD-5 y RD-6: 31/08).
+  - Casos de borde (actividad benigna y evasiones): 14 de septiembre de 2026.
+  - Ensayo previo de validación con hydra (fuera del dataset de medición): 17 de julio de 2026.
+RD-6 no genera `executed_at` (regla fire-and-forget, sin bloqueo automático), por lo que se
+excluye del análisis de MTTR.
 
 Metodología fase de control: no se ejecutó en vivo. Se calcula matemáticamente a partir
 del mismo `event_timestamp` real de cada ataque, asumiendo un analista que revisa la cola
 de alertas cada 20 minutos (puntos de revisión en :00, :20, :40 de cada hora) más un tiempo
 fijo de respuesta manual de 2.5 minutos (150s) una vez detectado.
+
+RUTAS: todas las salidas se escriben con rutas RELATIVAS, en el directorio desde donde se
+ejecuta el script. Este script NO sobrescribe `dataset_pareado.csv` (el volcado pareado con
+claves alert_id/playbook_run_id exportado de Postgres, que se versiona aparte); escribe sus
+métricas en `metricas_resultados.csv` para no pisar esas claves. Si `dataset_pareado.csv`
+está presente en el directorio, el bloque de VALIDACIÓN DE CLAVES lo controla sin modificarlo.
 """
 
+import os
 import numpy as np
 from scipy import stats
 from datetime import datetime, timedelta
@@ -142,12 +153,74 @@ for regla, id_, ev, created, executed in raw:
         "mttr_auto": mttr_auto, "mttr_manual": mttr_manual if mttr_auto is not None else None,
     })
 
-# Exportar CSV crudo (para anexo técnico / verificación del tribunal)
-with open("/home/claude/dataset_pareado.csv", "w", newline="") as f:
+# Exportar las MÉTRICAS calculadas (para anexo técnico / verificación del tribunal).
+# IMPORTANTE (T8): este archivo NO es el volcado pareado con claves. El dataset con
+# claves alert_id/playbook_run_id (dataset_pareado.csv) se exporta de Postgres y se
+# versiona aparte; acá solo se escriben las métricas derivadas, en un archivo propio,
+# para no sobrescribir esas claves al re-ejecutar el script.
+with open("metricas_resultados.csv", "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=["regla", "id", "mtta_auto", "mtta_manual", "mttr_auto", "mttr_manual"])
     writer.writeheader()
     for r in rows:
         writer.writerow(r)
+
+# ---------------------------------------------------------------------------
+# 3bis. VALIDACIÓN DE CLAVES DEL VOLCADO PAREADO (hallazgo D2)
+#   Controla, sin modificarlo, el dataset con claves exportado de Postgres
+#   (dataset_pareado.csv). Falla de forma explícita si:
+#     - se repite un alert_id (cada repetición referencia una alerta distinta), o
+#     - una fila de RD-6 no tiene un alert_id del rango esperado (69 a 78).
+#   RD-6 no ejecuta bloqueo, por lo que sus filas NO deben tener playbook_run_id.
+#   Si el archivo no está en el directorio, se omite la validación (el script
+#   sigue siendo ejecutable de forma autónoma para el resto del análisis).
+# ---------------------------------------------------------------------------
+def validar_claves(path="dataset_pareado.csv"):
+    if not os.path.exists(path):
+        print(f"\n[validación de claves] {path} no está en el directorio: se omite.")
+        return True
+    with open(path, newline="") as f:
+        filas = list(csv.DictReader(f))
+    cols = filas[0].keys() if filas else []
+    if "alert_id" not in cols:
+        print(f"\n[validación de claves] {path} no tiene columna alert_id: se omite.")
+        return True
+
+    errores = []
+    # 1) alert_id único en todo el dataset
+    vistos = {}
+    for fila in filas:
+        aid = (fila.get("alert_id") or "").strip()
+        if aid == "":
+            continue
+        vistos.setdefault(aid, []).append(fila.get("id", "?"))
+    for aid, quienes in vistos.items():
+        if len(quienes) > 1:
+            errores.append(f"alert_id {aid} repetido en filas: {', '.join(quienes)}")
+
+    # 2) RD-6: alert_id en el rango 69–78 y sin playbook_run_id
+    rd6 = [fila for fila in filas if (fila.get("regla") or "").strip() == "RD-6"]
+    for fila in rd6:
+        aid = (fila.get("alert_id") or "").strip()
+        if aid and not (aid.isdigit() and 69 <= int(aid) <= 78):
+            errores.append(f"RD-6 fila {fila.get('id','?')}: alert_id {aid} fuera del rango 69–78")
+        prid = (fila.get("playbook_run_id") or "").strip()
+        if prid not in ("", "NULL", "None", "—", "-"):
+            errores.append(f"RD-6 fila {fila.get('id','?')}: no debería tener playbook_run_id ({prid})")
+
+    print("\n" + "=" * 70)
+    print("VALIDACIÓN DE CLAVES DEL VOLCADO PAREADO (D2)")
+    print("=" * 70)
+    if errores:
+        print(f"FALLÓ: {len(errores)} inconsistencia(s) en {path}:")
+        for e in errores:
+            print(f"  - {e}")
+        # No abortamos el análisis estadístico (las métricas no dependen de las claves),
+        # pero el fallo queda registrado de forma inequívoca para el tribunal.
+        return False
+    print(f"OK: {len(filas)} filas, alert_id únicos y RD-6 con claves 69–78 sin playbook_run_id.")
+    return True
+
+validar_claves()
 
 # ---------------------------------------------------------------------------
 # 4. ANÁLISIS ESTADÍSTICO — MTTA (60 pares) y MTTR (50 pares, sin RD-6)
@@ -159,6 +232,16 @@ def wilcoxon_report(name, auto_vals, manual_vals, n_bootstrap=5000, seed=42):
     diff = manual - auto  # positivo = automatizado más rápido
 
     stat, p = stats.wilcoxon(manual, auto, alternative="greater")
+
+    # Método del p-valor (hallazgo N12): se declara explícitamente si el p reportado
+    # proviene de la aproximación normal o del cálculo exacto, y se informan ambos.
+    try:
+        p_exacto = stats.wilcoxon(manual, auto, alternative="greater", method="exact").pvalue
+    except Exception:
+        p_exacto = float("nan")
+    p_aprox = stats.wilcoxon(manual, auto, alternative="greater", method="approx").pvalue
+    # scipy usa 'exact' hasta N≈50 y 'approx' por encima; declaramos cuál aplica aquí.
+    metodo = "aproximación normal" if n > 50 else "exacto"
 
     # Z calculado directamente de la aproximación normal del estadístico de Wilcoxon,
     # NO invirtiendo el p-valor (eso se rompe cuando p redondea a 0.0 por precisión
@@ -191,7 +274,8 @@ def wilcoxon_report(name, auto_vals, manual_vals, n_bootstrap=5000, seed=42):
     print(f"Mediana automatizado: {np.median(auto):.1f}s ({np.median(auto)/60:.2f} min)")
     print(f"Mediana manual (control): {np.median(manual):.1f}s ({np.median(manual)/60:.2f} min)")
     print(f"Diferencia de medianas (manual - auto): {diff_medianas:.1f}s")
-    print(f"Wilcoxon signed-rank: W={stat:.1f}, p={p:.10f}")
+    print(f"Wilcoxon signed-rank: W={stat:.1f}, p={p:.10f}  [método reportado: {metodo}]")
+    print(f"   p por aproximación normal: {p_aprox:.3e}  |  p exacto: {p_exacto:.3e}")
     print(f"Z (aprox. normal, calculado directo del estadístico): {z:.3f}")
     print(f"Tamaño del efecto r = Z/sqrt(N): {r:.3f}")
     print(f"IC 95% bootstrap de la diferencia de medianas: [{ci_low:.1f}s, {ci_high:.1f}s]")
@@ -201,7 +285,8 @@ def wilcoxon_report(name, auto_vals, manual_vals, n_bootstrap=5000, seed=42):
     return {
         "n": n, "median_auto": np.median(auto), "median_manual": np.median(manual),
         "median_diff": diff_medianas, "W": stat, "p": p, "z": z, "r": r,
-        "ci_low": ci_low, "ci_high": ci_high, "reduction_pct": reduction_pct
+        "ci_low": ci_low, "ci_high": ci_high, "reduction_pct": reduction_pct,
+        "metodo_p": metodo, "p_aprox": p_aprox, "p_exacto": p_exacto
     }
 
 print("=" * 70)
@@ -259,7 +344,7 @@ print("planteado como trabajo futuro.")
 # ---------------------------------------------------------------------------
 # 6. GUARDAR RESUMEN EN CSV
 # ---------------------------------------------------------------------------
-with open("/home/claude/resumen_resultados.csv", "w", newline="") as f:
+with open("resumen_resultados.csv", "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["metrica", "valor"])
     writer.writerow(["MTTA_mediana_automatizado_s", f"{res_mtta['median_auto']:.1f}"])
@@ -351,6 +436,30 @@ print("de generación de los ataques (concentrados en una fase fija del ciclo de
 print("no una propiedad del sistema. Ver §13.3 de la tesis para la interpretación correcta")
 print("y la referencia estructural bajo llegadas uniformes.")
 
+# Referencia estructural bajo LLEGADAS UNIFORMES (hallazgo T1 / §13.3):
+#   Si los eventos llegaran uniformemente dentro del ciclo de revisión, la espera
+#   hasta el próximo punto de control sería uniforme en [0, T], con mediana T/2.
+#   Entonces la mediana del MTTA manual sería T*60/2 s y la reducción teórica es:
+#       red(T) = (T*30 - mediana_auto) / (T*30) * 100
+#   Esta curva SÍ es monótona creciente; es el contraste que muestra que la forma
+#   quebrada de la curva empírica proviene del calendario, no del sistema.
+def reduccion_referencia_uniforme(interval_min, mediana_auto_s=med_a):
+    med_manual_teorica = interval_min * 60 / 2.0   # = interval*30 s
+    return (med_manual_teorica - mediana_auto_s) / med_manual_teorica * 100
+
+print("\nReferencia bajo llegadas uniformes (mediana manual teórica = T/2):")
+print(f"{'Intervalo':>10} | {'Red. empírica':>13} | {'Red. referencia':>15}")
+print("-" * 46)
+for interval in range(5, 31):
+    manual = np.array([
+        (next_checkpoint_interval(t(ev), interval) - t(ev)).total_seconds()
+        for _, _, ev, _, _ in raw
+    ])
+    red_emp = (np.median(manual) - med_a) / np.median(manual) * 100 if np.median(manual) > 0 else 0
+    red_ref = reduccion_referencia_uniforme(interval)
+    print(f"{interval:>8}min | {red_emp:>+12.1f}% | {red_ref:>+14.1f}%")
+print("-" * 46)
+
 # 8bis. ESTIMADOR DE HODGES-LEHMANN para los intervalos de 10 y 20 minutos.
 #   Es el estimador que corresponde a la prueba de Wilcoxon (la pseudomediana:
 #   mediana de los promedios de Walsh de las diferencias pareadas). Explica por
@@ -389,6 +498,12 @@ print("(+103,9 s). ATENCIÓN: esto NO significa que la mayoría de los pares fav
 print("al sistema (de hecho, 24 favorables vs 36 desfavorables). Significa que la")
 print("mayoría de los PROMEDIOS DE WALSH son positivos: las diferencias favorables son")
 print("de mayor magnitud y ocupan los rangos más altos de la prueba de Wilcoxon.")
+print()
+print("NOTA sobre coherencia IC/p (hallazgo T1): el IC del estimador de Hodges-Lehmann")
+print("es BILATERAL al 95 % (percentiles 2,5 y 97,5 de los promedios de Walsh), por eso")
+print("a 10 min incluye el cero. El p = 0,0333 es UNILATERAL (dirección de H1: sistema")
+print("más rápido). No son contradictorios: miden cosas distintas (un intervalo de dos")
+print("colas frente a una prueba de una cola). A 20 min ambos coinciden en el signo.")
 
 # 7. BOXPLOTS — MTTA y MTTR, control (manual) vs. experimental (automatizado)
 # ---------------------------------------------------------------------------
@@ -396,22 +511,27 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+def _boxplot(ax, data, etiquetas, **kw):
+    """Boxplot compatible con matplotlib viejo (labels=) y nuevo (tick_labels=)."""
+    bp = ax.boxplot(data, patch_artist=True, **kw)
+    ax.set_xticks(range(1, len(etiquetas) + 1))
+    ax.set_xticklabels(etiquetas)
+    return bp
+
 fig, axes = plt.subplots(1, 2, figsize=(11, 5))
 
-axes[0].boxplot(
+_boxplot(axes[0],
     [np.array(mtta_manual_all) / 60, np.array(mtta_auto_all) / 60],
-    labels=["Control\n(calculado)", "Experimental\n(n8n activo)"],
-    patch_artist=True,
+    ["Control\n(calculado)", "Experimental\n(n8n activo)"],
     boxprops=dict(facecolor="#f4a582"),
 )
 axes[0].set_ylabel("MTTA (minutos)")
 axes[0].set_title(f"MTTA — N={res_mtta['n']} pares\np={res_mtta['p']:.2e}")
 axes[0].grid(axis="y", alpha=0.3)
 
-axes[1].boxplot(
+_boxplot(axes[1],
     [np.array(mttr_manual_all) / 60, np.array(mttr_auto_all) / 60],
-    labels=["Control\n(calculado)", "Experimental\n(n8n activo)"],
-    patch_artist=True,
+    ["Control\n(calculado)", "Experimental\n(n8n activo)"],
     boxprops=dict(facecolor="#92c5de"),
 )
 axes[1].set_ylabel("MTTR (minutos)")
@@ -420,7 +540,7 @@ axes[1].grid(axis="y", alpha=0.3)
 
 fig.suptitle("Comparación fase de control vs. fase experimental — Laboratorio SOC n8n", fontsize=12)
 fig.tight_layout()
-fig.savefig("/home/claude/boxplot_mtta_mttr.png", dpi=150)
+fig.savefig("boxplot_mtta_mttr.png", dpi=150)
 print("Gráfico generado: boxplot_mtta_mttr.png")
 
 # Boxplot adicional: MTTA desagregado por regla, ambas condiciones
@@ -444,5 +564,49 @@ ax2.set_title("MTTA por regla — experimental (naranja) vs. control calculado (
 ax2.legend([bp1["boxes"][0], bp2["boxes"][0]], ["Experimental (n8n)", "Control (calculado)"], loc="upper left")
 ax2.grid(axis="y", alpha=0.3)
 fig2.tight_layout()
-fig2.savefig("/home/claude/boxplot_mtta_por_regla.png", dpi=150)
+fig2.savefig("boxplot_mtta_por_regla.png", dpi=150)
 print("Gráfico generado: boxplot_mtta_por_regla.png")
+
+# ---------------------------------------------------------------------------
+# 9. FIGURA 6 — Análisis de sensibilidad del brazo de control (hallazgo T1)
+#    Eje x NUMÉRICO y proporcional (5 a 30 min), grilla completa punto a punto,
+#    y la CURVA DE REFERENCIA bajo llegadas uniformes superpuesta. El contraste
+#    entre la curva empírica (quebrada) y la de referencia (monótona) muestra que
+#    la no-monotonía proviene del calendario de generación, no del sistema.
+# ---------------------------------------------------------------------------
+intervalos = list(range(5, 31))
+red_emp = []
+for interval in intervalos:
+    manual = np.array([
+        (next_checkpoint_interval(t(ev), interval) - t(ev)).total_seconds()
+        for _, _, ev, _, _ in raw
+    ])
+    mm = np.median(manual)
+    red_emp.append((mm - med_a) / mm * 100 if mm > 0 else 0)
+red_ref = [reduccion_referencia_uniforme(iv) for iv in intervalos]
+
+fig6, ax6 = plt.subplots(figsize=(10, 5.5))
+# Curva de referencia (monótona) bajo llegadas uniformes
+ax6.plot(intervalos, red_ref, color="#2166ac", lw=2, ls="--",
+         label="Referencia bajo llegadas uniformes (mediana manual = T/2)")
+# Curva empírica, punto a punto, en el eje numérico real
+ax6.plot(intervalos, red_emp, color="#b2182b", lw=1.5, marker="o", ms=5,
+         label="Reducción empírica observada (calendario real de la campaña)")
+# Marcas de referencia: 20 min (configuración declarada) y línea del 0 %
+ax6.axhline(0, color="#777777", lw=0.9)
+ax6.axvline(20, color="#777777", lw=0.9, ls=":")
+ax6.annotate("Intervalo declarado\n(20 min): +50,6 %",
+             xy=(20, 50.6), xytext=(21.5, 18),
+             fontsize=9, color="#333333",
+             arrowprops=dict(arrowstyle="->", color="#333333", lw=0.8))
+ax6.set_xlabel("Intervalo de revisión manual asumido (minutos)")
+ax6.set_ylabel("Reducción del MTTA mediano (%)")
+ax6.set_title("Figura 6 — Sensibilidad de la reducción del MTTA al intervalo de revisión\n"
+              "Curva empírica vs. referencia estructural bajo llegadas uniformes")
+ax6.set_xticks(intervalos)
+ax6.tick_params(axis="x", labelsize=8)
+ax6.grid(alpha=0.3)
+ax6.legend(loc="lower right", fontsize=9)
+fig6.tight_layout()
+fig6.savefig("Figura6-Sensibilidad-corregida.png", dpi=150)
+print("Gráfico generado: Figura6-Sensibilidad-corregida.png")
