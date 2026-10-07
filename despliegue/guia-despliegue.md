@@ -1,6 +1,10 @@
 # Guía de Despliegue — Laboratorio SOC n8n
 
+> **Versión de referencia:** esta guía corresponde al commit `209ffb9` del repositorio (22/09/2026). El intento de despliegue de H2 reportado en la tesis (§13.6) se realizó el **19 de septiembre de 2026** siguiendo esta guía.
+
 **Objetivo:** desplegar el stack completo (Syslog-ng, PostgreSQL, n8n, Fail2ban, DVWA) sobre una VM Ubuntu ya instalada, con la red del laboratorio ya configurada. Esta guía asume que las VMs (Ubuntu + Kali), la red interna `soc-lab` y las IPs fijas **ya existen** — el tiempo a cronometrar para H2 es el de este documento, no el de instalar el sistema operativo desde cero.
+
+**Versiones del stack (fijadas para reproducibilidad):** Ubuntu 24.04.4 LTS · PostgreSQL 16 · **n8n 2.29.9** (imagen pinneada, no `latest`) · Fail2ban 1.0.2 · Docker 29.x · Syslog-ng 4.x.
 
 **Antes de empezar (lo prepara el equipo, no la persona que hace la prueba):**
 - Exportar los 6 sub-workflows + el orquestador padre desde n8n (menú `...` → Download) y dejarlos en una carpeta `workflows-export/`
@@ -81,6 +85,15 @@ EOF
 sudo systemctl restart postgresql
 ```
 
+**Fijar la zona horaria de PostgreSQL en UTC (obligatorio para reproducir las métricas).** El esquema almacena los timestamps con tipo `TIMESTAMP` (sin zona horaria), de modo que `NOW()` debe registrar en UTC de forma consistente (ver §13.7). Aunque el sistema operativo use `America/Argentina/Buenos_Aires`, PostgreSQL debe operar en UTC:
+```bash
+sudo -u postgres psql -c "ALTER SYSTEM SET timezone = 'UTC';"
+sudo -u postgres psql -c "ALTER DATABASE soc_lab SET timezone = 'UTC';"
+sudo systemctl restart postgresql
+# verificar:
+sudo -u postgres psql -d soc_lab -c "SHOW timezone;"   # debe devolver UTC
+```
+
 **Nota:** la regla para `172.16.0.0/12` es necesaria porque el contenedor de n8n se conecta desde una IP tipo `172.18.x.x` de la red interna de Docker — sin esa regla, n8n no puede conectarse a Postgres aunque las credenciales sean correctas.
 
 Cargar el esquema (usar el archivo `esquema.sql` del repositorio, o crear las tablas manualmente — ver Anexo B de la tesis para el DDL completo, incluidas las 5 tablas: `alerts`, `attack_patterns`, `detection_rules`, `playbook_runs`, `workflow_state`).
@@ -92,7 +105,7 @@ mkdir -p ~/n8n-soc && cd ~/n8n-soc
 tee docker-compose.yml > /dev/null << 'EOF'
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    image: docker.n8n.io/n8nio/n8n:2.29.9
     ports:
       - "5678:5678"
     environment:
@@ -104,6 +117,8 @@ services:
       - N8N_HOST=192.168.100.10
       - N8N_SECURE_COOKIE=false
       - NODES_EXCLUDE=[]
+      - GENERIC_TIMEZONE=UTC
+      - EXECUTIONS_DATA_PRUNE=false
     volumes:
       - n8n_data:/home/node/.n8n
       - /var/log/security:/var/log/security:ro
@@ -115,6 +130,8 @@ sudo docker compose up -d
 ```
 
 **Nota:** `NODES_EXCLUDE=[]` es necesario para reactivar el nodo **Execute Command**, que viene deshabilitado por defecto en n8n desde la versión 2.0 por seguridad — sin esto, los sub-workflows que ejecutan `fail2ban-client` van a fallar.
+
+**Nota sobre la imagen y la retención:** se fija `n8n:2.29.9` (no `latest`) para que la versión del motor sea reproducible. `EXECUTIONS_DATA_PRUNE=false` desactiva la poda automática de ejecuciones; de lo contrario, los registros internos de ejecución de n8n (tablas `execution_entity`/`execution_data`) se purgan y no pueden aportarse como evidencia posterior (ver §13.7 y la nota de evidencia del repositorio). `GENERIC_TIMEZONE=UTC` alinea la zona horaria del motor con la de PostgreSQL.
 
 ## Paso 6 — Configurar Fail2ban (≈3 min)
 
@@ -149,6 +166,32 @@ Confirmar que solo hay un jail activo:
 ```bash
 sudo fail2ban-client status
 ```
+
+## Paso 6b — Permisos de actuación por SSH (clave + sudoers) (≈2 min)
+
+Los sub-workflows ejecutan la contención conectándose por SSH a la propia VM y corriendo `fail2ban-client` e `iptables` con `sudo`. Para que eso funcione sin pedir contraseña, hay que (1) habilitar una clave SSH para n8n y (2) autorizar esos dos comandos por sudo sin contraseña.
+
+**1. Clave SSH para n8n:**
+```bash
+# generar un par de claves dedicado para n8n (sin passphrase)
+ssh-keygen -t ed25519 -f ~/n8n_soc_key -N ""
+# autorizar la clave pública para el usuario que ejecutará la contención (ej. ubuntu)
+cat ~/n8n_soc_key.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+La clave privada `~/n8n_soc_key` se cargará como credencial "SSH Private Key account" en n8n (Paso 9).
+
+**2. sudoers sin contraseña para los comandos de contención:**
+```bash
+sudo tee /etc/sudoers.d/n8n-soc > /dev/null << 'EOF'
+ubuntu ALL=(root) NOPASSWD: /usr/bin/fail2ban-client, /usr/sbin/iptables
+EOF
+sudo chmod 440 /etc/sudoers.d/n8n-soc
+sudo visudo -c   # verificar que la sintaxis es válida
+```
+(Reemplazar `ubuntu` por el usuario real si es otro. Verificar las rutas con `which fail2ban-client` y `which iptables`.)
+
+**Nota:** sin la regla de sudoers, los nodos "Ban IP"/"Execute a command" fallan con un prompt de contraseña que n8n no puede responder, y el bloqueo nunca se ejecuta.
 
 ## Paso 7 — Configurar la regla de escaneo de puertos (≈1 min)
 
@@ -205,8 +248,13 @@ sudo systemctl restart syslog-ng
 1. Abrir `http://192.168.100.10:5678` y crear el usuario owner
 2. Importar los 6 sub-workflows desde `workflows-export/` (menú `...` → Import from File)
 3. Importar el workflow padre ("Orquestador Central - SOC Lab")
-4. **Publicar cada uno de los 6 sub-workflows primero**, y recién después publicar el padre (el padre no puede activarse si algún sub-workflow que referencia no está publicado)
-5. Configurar las credenciales necesarias: Postgres (usuario `n8n_soc`), AbuseIPDB (header `Key`), Discord Bot API
+4. **Configurar las credenciales** (los JSON publicados traen los IDs como marcadores `TU_CREDENCIAL_*_AQUI`, hay que crear cada credencial y asignarla en los nodos correspondientes):
+   - **Postgres** (usuario `n8n_soc`, base `soc_lab`, host `192.168.100.10`) — en todos los nodos Postgres de los 7 workflows.
+   - **AbuseIPDB** (Header Auth, cabecera `Key`) — nodo de enriquecimiento.
+   - **Discord Bot API** — nodos de notificación/aprobación; además, reemplazar los marcadores `TU_GUILD_ID_AQUI` y `TU_CHANNEL_ID_AQUI` por el servidor y canal reales.
+   - **SSH Private Key account** — cargar la clave privada `~/n8n_soc_key` generada en el Paso 6b; es la que usan los nodos "Ban IP"/"Execute a command".
+5. **Reasignar los sub-workflows en el orquestador padre.** El padre publicado referencia a cada hijo por su ID de workflow, que en los JSON exportados figura como marcador (`TU_WORKFLOW_ID_RD1_AQUI` … `TU_WORKFLOW_ID_RD6_AQUI`). En cada nodo "Execute Sub-workflow" del padre, seleccionar manualmente el sub-workflow RD-1 a RD-6 correspondiente ya importado en esta instancia (los IDs de la instancia de los autores no existen en un despliegue nuevo).
+6. **Publicar cada uno de los 6 sub-workflows primero**, y recién después publicar el padre (el padre no puede activarse si algún sub-workflow que referencia no está publicado).
 
 ## Paso 10 — Verificación final (≈2 min)
 
@@ -224,9 +272,9 @@ Esperar el próximo ciclo del Cron (hasta 5 min) y confirmar que llega una notif
 
 ---
 
-## Tiempo estimado total: ~25 minutos (sin contar la espera del Cron del paso 10)
+## Tiempo estimado total: ~28 minutos (sin contar la espera del Cron del paso 10)
 
-Este es el tiempo objetivo de referencia para el intento de H2. Si el paso 10 (validación end-to-end) se cronometra aparte por depender del Cron, el despliegue en sí (pasos 1-9) debería completarse en unos 22-24 minutos siguiendo esta guía al pie de la letra.
+Este es el tiempo objetivo de referencia para el intento de H2. Si el paso 10 (validación end-to-end) se cronometra aparte por depender del Cron, el despliegue en sí (pasos 1-9) debería completarse en unos 25-28 minutos siguiendo esta guía al pie de la letra. El intento real de H2 (19/09/2026) superó el umbral de 30 minutos, lo que la tesis reporta como evidencia preliminar de que la documentación permite el despliegue autónomo pero aún requiere mejoras (§13.6, §15.2).
 
 ---
 

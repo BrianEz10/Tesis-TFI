@@ -7,7 +7,7 @@ Fuente de los datos (exportados de las tablas `alerts` y `playbook_runs` de Post
   - Sesiones de medición de las 60 repeticiones: 25, 26, 29 y 31 de agosto de 2026
     (RD-1 y RD-2: 25/08; RD-3: 26/08; RD-4: 29/08; RD-5 y RD-6: 31/08).
   - Casos de borde (actividad benigna y evasiones): 14 de septiembre de 2026.
-  - Ensayo previo de validación con hydra (fuera del dataset de medición): 17 de julio de 2026.
+  - Ensayos previos de comprobación con hydra para RD-1 (fuera del dataset de medición): 17 y 24 de agosto de 2026.
 RD-6 no genera `executed_at` (regla fire-and-forget, sin bloqueo automático), por lo que se
 excluye del análisis de MTTR.
 

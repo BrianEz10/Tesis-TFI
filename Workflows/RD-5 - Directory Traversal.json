@@ -549,16 +549,7 @@
       }
     }
   ],
-  "pinData": {
-    "RD-5 Trigger": [
-      {
-        "json": {
-          "stdout": "2026-07-13T10:55:20-03:00 dvwa-web apache-access 192.168.100.20 - - [13/Jul/2026:13:55:20 +0000] \"GET /vulnerabilities/fi/?page=../../../../../etc/passwd HTTP/1.1\" 200 4491 \"-\" \"curl/8.20.0\"",
-          "read_time": "2026-07-13T11:00:00.000-03:00"
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "RD-5 Trigger": {
       "main": [
