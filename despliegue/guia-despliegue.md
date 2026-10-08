@@ -1,6 +1,6 @@
 # Guía de Despliegue — Laboratorio SOC n8n
 
-> **Versión de referencia:** esta guía corresponde al commit `209ffb9` del repositorio (22/09/2026). El intento de despliegue de H2 reportado en la tesis (§13.6) se realizó el **19 de septiembre de 2026** siguiendo esta guía.
+> **Versión de referencia:** esta guía se publicó por primera vez en el commit `209ffb9` del repositorio (22/09/2026) y se revisó y amplió con posterioridad; el tag `v1.4-defensa` incluye esta versión revisada. El intento de despliegue de H2 reportado en la tesis (§13.6) se realizó el **19 de septiembre de 2026** sobre una versión local previa de esta guía, anterior a su primera publicación y no conservada, por lo que su contenido no coincide línea por línea con el de esta versión.
 
 **Objetivo:** desplegar el stack completo (Syslog-ng, PostgreSQL, n8n, Fail2ban, DVWA) sobre una VM Ubuntu ya instalada, con la red del laboratorio ya configurada. Esta guía asume que las VMs (Ubuntu + Kali), la red interna `soc-lab` y las IPs fijas **ya existen** — el tiempo a cronometrar para H2 es el de este documento, no el de instalar el sistema operativo desde cero.
 
@@ -219,7 +219,7 @@ Configurar la base de datos de DVWA:
 sleep 10  # esperar a que arranque el contenedor
 curl -s http://localhost/setup.php > /dev/null
 ```
-Completar el resto del setup (crear la base y fijar seguridad en "Low") desde el navegador en `http://192.168.100.10/setup.php`, o con el script `curl` documentado en el Anexo técnico.
+Completar el resto del setup (crear la base y fijar seguridad en "Low") desde el navegador en `http://192.168.100.10/setup.php` (o, de forma equivalente, reproduciendo el envío del formulario «Create / Reset Database» de esa misma página con `curl`, pasando el `user_token` que devuelve el `GET` previo).
 
 Integrar los logs de DVWA a Syslog-ng:
 ```bash
@@ -253,7 +253,7 @@ sudo systemctl restart syslog-ng
    - **AbuseIPDB** (Header Auth, cabecera `Key`) — nodo de enriquecimiento.
    - **Discord Bot API** — nodos de notificación/aprobación; además, reemplazar los marcadores `TU_GUILD_ID_AQUI` y `TU_CHANNEL_ID_AQUI` por el servidor y canal reales.
    - **SSH Private Key account** — cargar la clave privada `~/n8n_soc_key` generada en el Paso 6b; es la que usan los nodos "Ban IP"/"Execute a command".
-5. **Reasignar los sub-workflows en el orquestador padre.** El padre publicado referencia a cada hijo por su ID de workflow, que en los JSON exportados figura como marcador (`TU_WORKFLOW_ID_RD1_AQUI` … `TU_WORKFLOW_ID_RD6_AQUI`). En cada nodo "Execute Sub-workflow" del padre, seleccionar manualmente el sub-workflow RD-1 a RD-6 correspondiente ya importado en esta instancia (los IDs de la instancia de los autores no existen en un despliegue nuevo).
+5. **Reasignar los sub-workflows en el orquestador padre.** El padre publicado referencia a cada hijo por su ID interno de workflow, propio de la instancia de los autores, que no existe en un despliegue nuevo. En cada nodo "Execute Sub-workflow" del padre hay que seleccionar manualmente el sub-workflow RD-1 a RD-6 correspondiente ya importado en esta instancia; al guardar, el ID original queda reemplazado por el de la nueva instancia.
 6. **Publicar cada uno de los 6 sub-workflows primero**, y recién después publicar el padre (el padre no puede activarse si algún sub-workflow que referencia no está publicado).
 
 ## Paso 10 — Verificación final (≈2 min)

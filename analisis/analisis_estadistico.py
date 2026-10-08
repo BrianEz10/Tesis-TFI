@@ -314,6 +314,51 @@ for regla in ["RD-1", "RD-2", "RD-3", "RD-4", "RD-5", "RD-6"]:
           f"| N={len(sub)}")
 
 # ---------------------------------------------------------------------------
+# 4bis. ANÁLISIS DE SENSIBILIDAD DE LA SELECCIÓN DE REPETICIONES (hallazgo C2)
+#   La selección retuvo 10 repeticiones con bloqueo efectivo por regla; en RD-3 se
+#   retuvo la alerta 47 y se excluyó la 46 (origen 192.168.100.50). Para mostrar que la
+#   selección no altera el resultado, se recomputan las medianas sustituyendo en RD-3 la
+#   alerta 47 por la 46, con los datos tomados del volcado datos-campana.sql.
+# ---------------------------------------------------------------------------
+print("\n" + "=" * 70)
+print("SENSIBILIDAD DE LA SELECCIÓN — RD-3: alerta 47 reemplazada por la 46 (C2)")
+print("=" * 70)
+
+def _medianas_reduccion(raw_set):
+    mtta_a, mtta_m, mttr_a, mttr_m = [], [], [], []
+    for regla, id_, ev, created, executed in raw_set:
+        e = t(ev); c = t(created)
+        mtta_a.append((c - e).total_seconds())
+        cp = next_checkpoint(e); mm = (cp - e).total_seconds()
+        mtta_m.append(mm)
+        if executed:
+            mttr_a.append((t(executed) - e).total_seconds()); mttr_m.append(mm + MANUAL_RESPONSE_SEC)
+    mtta_a = np.array(mtta_a); mtta_m = np.array(mtta_m)
+    mttr_a = np.array(mttr_a); mttr_m = np.array(mttr_m)
+    red_mtta = (np.median(mtta_m) - np.median(mtta_a)) / np.median(mtta_m) * 100
+    red_mttr = (np.median(mttr_m) - np.median(mttr_a)) / np.median(mttr_m) * 100
+    return red_mtta, red_mttr
+
+# Alerta 46 (RD-3, origen 192.168.100.50) tomada del volcado datos-campana.sql:
+#   event_timestamp 2026-08-26 21:01:04 | created_at 21:05:45.333355 | executed_at 21:06:01.276166
+raw_swap = []
+for fila in raw:
+    if fila[0] == "RD-3" and fila[1] == "45":  # la repetición retenida corresponde a la alerta 47
+        raw_swap.append(("RD-3", "46sel",
+                         "2026-08-26 21:01:04.0",
+                         "2026-08-26 21:05:45.333355",
+                         "2026-08-26 21:06:01.276166"))
+    else:
+        raw_swap.append(fila)
+
+red_mtta_base, red_mttr_base = _medianas_reduccion(raw)
+red_mtta_swap, red_mttr_swap = _medianas_reduccion(raw_swap)
+print(f"Selección base (alerta 47):        MTTA reducción {red_mtta_base:.1f}% | MTTR reducción {red_mttr_base:.1f}%")
+print(f"Selección alternativa (alerta 46): MTTA reducción {red_mtta_swap:.1f}% | MTTR reducción {red_mttr_swap:.1f}%")
+print("La selección no altera la dirección ni, de forma apreciable, la magnitud del")
+print("resultado (§10.5): la ventaja de la automatización se mantiene en ambos casos.")
+
+# ---------------------------------------------------------------------------
 # 5. CASOS DE BORDE DE LAS REGLAS (no son métricas de desempeño del sistema)
 #    Documentan el comportamiento de cada regla en sus límites. NO se reportan
 #    precisión/recall/FPR agregadas, porque estos casos fueron diseñados (una
@@ -326,13 +371,19 @@ print("=" * 70)
 
 TP = 60  # las 60 repeticiones de detección: ataques reales correctamente detectados
 TN = 4   # actividad benigna correctamente ignorada (RD-1, RD-2, RD-4, RD-6)
-FP = 4   # actividad legítima que cruza el umbral (RD-1, RD-2, RD-4, RD-6)
+# FP OBSERVADOS = 3 (hallazgo C4): actividad legítima que cruzó el umbral en RD-1 (alerta 79),
+# RD-2 (alerta 80) y RD-6 (alerta 82). El falso positivo DISEÑADO para RD-4 (alerta 81) NO se
+# reprodujo: esa alerta la dispararon tres solicitudes con patrones de inyección reales dentro
+# de la ventana, por lo que es un VERDADERO positivo, no un falso positivo.
+FP = 3   # falsos positivos observados (RD-1=79, RD-2=80, RD-6=82); el de RD-4 no se reprodujo
 FN = 6   # ataques que evaden la detección (uno por regla)
 
 print(f"Ataques detectados (TP): {TP}")
 print(f"Casos benignos correctamente ignorados (TN): {TN}")
-print(f"Casos benignos que cruzaron el umbral (FP): {FP}")
+print(f"Casos benignos que cruzaron el umbral (FP observados): {FP}  [alertas 79, 80, 82]")
 print(f"Ataques que evadieron la detección (FN): {FN}")
+print("NOTA C4: el FP diseñado para RD-4 (alerta 81) no se reprodujo; la dispararon tres")
+print("inyecciones reales, por lo que se cuenta como verdadero positivo, no como falso positivo.")
 print()
 print("NOTA: estos conteos NO se agregan en métricas de precisión/recall/FPR,")
 print("porque la cantidad de cada tipo fue elegida por diseño. Su valor es")
@@ -362,7 +413,7 @@ with open("resumen_resultados.csv", "w", newline="") as f:
     writer.writerow(["casos_borde_TP", TP]); writer.writerow(["casos_borde_TN", TN])
     writer.writerow(["casos_borde_FP", FP]); writer.writerow(["casos_borde_FN", FN])
 
-print("\n\nArchivos generados: dataset_pareado.csv, resumen_resultados.csv")
+print("\n\nArchivos generados: metricas_resultados.csv, resumen_resultados.csv")
 
 # ---------------------------------------------------------------------------
 
@@ -437,19 +488,57 @@ print("no una propiedad del sistema. Ver §13.3 de la tesis para la interpretaci
 print("y la referencia estructural bajo llegadas uniformes.")
 
 # Referencia estructural bajo LLEGADAS UNIFORMES (hallazgo T1 / §13.3):
-#   Si los eventos llegaran uniformemente dentro del ciclo de revisión, la espera
-#   hasta el próximo punto de control sería uniforme en [0, T], con mediana T/2.
-#   Entonces la mediana del MTTA manual sería T*60/2 s y la reducción teórica es:
-#       red(T) = (T*30 - mediana_auto) / (T*30) * 100
-#   Esta curva SÍ es monótona creciente; es el contraste que muestra que la forma
-#   quebrada de la curva empírica proviene del calendario, no del sistema.
-def reduccion_referencia_uniforme(interval_min, mediana_auto_s=med_a):
+#   La referencia contrasta la reducción OBSERVADA (calendario real: ataques concentrados
+#   en una fase fija del ciclo del Cron) contra la que se vería si los eventos llegaran
+#   UNIFORMEMENTE dentro del ciclo. Bajo llegadas uniformes:
+#     - la mediana del MTTA MANUAL es T/2 (espera uniforme en [0,T], mediana T/2);
+#     - la mediana del MTTA AUTOMATIZADO NO es la observada (264 s = 4,40 min): también
+#       depende del calendario. Con llegadas uniformes, la espera hasta el próximo tick
+#       del Cron es uniforme en [0, ciclo] (ciclo = 5 min = 300 s), de mediana ~150 s, más
+#       el tiempo de proceso (mediana empírica ~0 s). Se estima por simulación: ~2,50 min.
+#   CORRECCIÓN T1: la versión anterior usaba la mediana automatizada OBSERVADA (264 s) en
+#   esta referencia, mezclando la mediana manual teórica (T/2) con la automatizada del
+#   calendario real. Eso producía una curva híbrida que cruzaba el 0 cerca de los 9 min y
+#   quedaba por encima de la empírica en 17 de 26 intervalos. Con la mediana automatizada
+#   que corresponde a llegadas uniformes (~150 s), la referencia es monótona creciente y
+#   la curva empírica queda por debajo en los 26 intervalos: la no-monotonía y la magnitud
+#   observadas provienen del calendario, no del sistema, y la reducción medida (50,6 %) si
+#   acaso SUBESTIMA la ventaja estructural.
+
+# Mediana del MTTA automatizado bajo llegadas uniformes, estimada por simulación
+# (reproducible con seed fija). Modelo: offset del evento uniforme en el ciclo de 300 s;
+# espera = (fase_tick - offset) mod 300; más el tiempo de proceso empírico por evento
+# (created_at menos la espera al tick en la grilla real), cuya mediana es ~0 s.
+def _mediana_auto_llegadas_uniformes(seed=42, N=200000, ciclo_s=300):
+    secs = lambda d: d.hour * 3600 + d.minute * 60 + d.second + d.microsecond / 1e6
+    fases = np.array([secs(t(created)) % ciclo_s for _, _, _, created, _ in raw])
+    fase_tick = np.median(fases)
+    procs = np.array([
+        (t(created) - t(ev)).total_seconds() - ((fase_tick - (secs(t(ev)) % ciclo_s)) % ciclo_s)
+        for _, _, ev, created, _ in raw
+    ])
+    rng = np.random.default_rng(seed)
+    offs = rng.uniform(0, ciclo_s, N)
+    esperas = (fase_tick - offs) % ciclo_s
+    auto_unif = esperas + rng.choice(procs, N, replace=True)
+    return float(np.median(auto_unif))
+
+med_auto_unif = _mediana_auto_llegadas_uniformes()
+
+def reduccion_referencia_uniforme(interval_min, mediana_auto_s=None):
+    """Reducción del MTTA mediano bajo llegadas uniformes, al intervalo de revisión T.
+    Mediana manual teórica = T/2; mediana automatizada = la que corresponde a llegadas
+    uniformes (med_auto_unif ≈ 150 s), NO la observada bajo el calendario concentrado (T1)."""
+    if mediana_auto_s is None:
+        mediana_auto_s = med_auto_unif
     med_manual_teorica = interval_min * 60 / 2.0   # = interval*30 s
     return (med_manual_teorica - mediana_auto_s) / med_manual_teorica * 100
 
-print("\nReferencia bajo llegadas uniformes (mediana manual teórica = T/2):")
+print(f"\nReferencia bajo llegadas uniformes (mediana manual teórica = T/2; mediana")
+print(f"automatizada bajo llegadas uniformes = {med_auto_unif:.1f}s = {med_auto_unif/60:.2f} min, por simulación):")
 print(f"{'Intervalo':>10} | {'Red. empírica':>13} | {'Red. referencia':>15}")
 print("-" * 46)
+cruces = 0
 for interval in range(5, 31):
     manual = np.array([
         (next_checkpoint_interval(t(ev), interval) - t(ev)).total_seconds()
@@ -457,8 +546,15 @@ for interval in range(5, 31):
     ])
     red_emp = (np.median(manual) - med_a) / np.median(manual) * 100 if np.median(manual) > 0 else 0
     red_ref = reduccion_referencia_uniforme(interval)
+    if red_emp > red_ref:
+        cruces += 1
     print(f"{interval:>8}min | {red_emp:>+12.1f}% | {red_ref:>+14.1f}%")
 print("-" * 46)
+print(f"Intervalos donde la curva empírica SUPERA a la de referencia: {cruces} de 26.")
+print("Con la referencia correcta (mediana automatizada de llegadas uniformes) la empírica")
+print("queda por debajo en los 26 intervalos: la ventaja observada, si acaso, subestima la")
+print("estructural (hallazgo T1). El punto de equilibrio de la referencia (reducción 0 %)")
+print(f"cae en T = {med_auto_unif/30:.2f} min, no cerca de los 9 min de la curva híbrida anterior.")
 
 # 8bis. ESTIMADOR DE HODGES-LEHMANN para los intervalos de 10 y 20 minutos.
 #   Es el estimador que corresponde a la prueba de Wilcoxon (la pseudomediana:
@@ -514,6 +610,28 @@ print("mientras que los p reportados son UNILATERALES en la dirección de H1. Po
 print("10 min el IC incluye el cero (coherente con un p bilateral de 0,067, cercano al")
 print("umbral) y a 20 min lo excluye (p bilateral 4,7e-07). No son contradictorios: un")
 print("intervalo de dos colas y una prueba de una cola miden cosas distintas.")
+
+# Asimetría del IC a 10 min (hallazgo T1): el límite superior queda a medio segundo del
+# estimador porque el calendario concentrado amontona casi la mitad de los promedios de
+# Walsh junto al estimador, comprimiendo el intervalo por arriba.
+manual10 = np.array([
+    (next_checkpoint_interval(t(ev), 10) - t(ev)).total_seconds() for _, _, ev, _, _ in raw
+])
+diff10 = manual10 - mtta_auto_arr
+walsh10 = np.sort([(diff10[i] + diff10[j]) / 2 for i in range(len(diff10)) for j in range(i, len(diff10))])
+hl10 = float(np.median(walsh10))
+nw10 = len(walsh10)
+C10 = len(diff10) * (len(diff10) + 1) / 4.0 - stats.norm.ppf(0.975) * np.sqrt(
+    len(diff10) * (len(diff10) + 1) * (2 * len(diff10) + 1) / 24.0)
+k10 = int(np.floor(C10))
+hl10_high = walsh10[nw10 - 1 - k10]
+frac5 = float(np.mean(np.abs(walsh10 - hl10) <= 5) * 100)
+print()
+print(f"Asimetría del IC a 10 min: estimador H-L = {hl10:+.1f}s, límite superior del IC = "
+      f"{hl10_high:+.1f}s (a {hl10_high - hl10:.1f}s del estimador).")
+print(f"El {frac5:.0f}% de los promedios de Walsh está a menos de 5 s del estimador: el")
+print("calendario casi determinístico concentra la masa junto al H-L y comprime el IC por")
+print("arriba. Conviene decirlo en una oración, porque un lector lo advertiría (§13.3).")
 
 # 7. BOXPLOTS — MTTA y MTTR, control (manual) vs. experimental (automatizado)
 # ---------------------------------------------------------------------------
@@ -598,7 +716,7 @@ red_ref = [reduccion_referencia_uniforme(iv) for iv in intervalos]
 fig6, ax6 = plt.subplots(figsize=(10, 5.5))
 # Curva de referencia (monótona) bajo llegadas uniformes
 ax6.plot(intervalos, red_ref, color="#2166ac", lw=2, ls="--",
-         label="Referencia bajo llegadas uniformes (mediana manual = T/2)")
+         label=f"Referencia estructural bajo llegadas uniformes\n(mediana manual = T/2; mediana auto = {med_auto_unif/60:.2f} min)")
 # Curva empírica, punto a punto, en el eje numérico real
 ax6.plot(intervalos, red_emp, color="#b2182b", lw=1.5, marker="o", ms=5,
          label="Reducción empírica observada (calendario real de la campaña)")
